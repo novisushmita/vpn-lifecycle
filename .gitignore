@@ -1,0 +1,29 @@
+# Kredensial lingkungan uji — JANGAN di-push
+KREDENSIAL.local.md
+*.local.md
+*.local.rsc
+klien-uji.rsc
+
+# Lingkungan kerja lokal
+.agents/
+.run/
+
+# Laravel
+vps-vpn-backend/.env
+vps-vpn-backend/vendor/
+vps-vpn-backend/storage/*.key
+vps-vpn-backend/storage/logs/*
+vps-vpn-backend/storage/framework/cache/data/*
+vps-vpn-backend/storage/framework/sessions/*
+vps-vpn-backend/storage/framework/views/*
+vps-vpn-backend/bootstrap/cache/*
+vps-vpn-backend/database/*.sqlite
+
+# Vue
+vps-vpn-frontend/.env
+vps-vpn-frontend/node_modules/
+vps-vpn-frontend/dist/
+
+# OS
+.DS_Store
+*.swp
