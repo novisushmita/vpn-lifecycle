@@ -28,8 +28,8 @@ Opsional: `sudo apt install php-intl` (hanya untuk perintah kosmetik
 TUGAS AKHIR NOVICAN/
 ├── CLAUDE.md              # dokumen acuan sistem
 ├── SETUP.md               # berkas ini
-├── vps-vpn-frontend/      # Vue 3 + Vite + Vue Router
-└── vps-vpn-backend/       # Laravel 13
+├── vpn-frontend/      # Vue 3 + Vite + Vue Router
+└── vpn-backend/       # Laravel 13
 ```
 
 ---
@@ -80,8 +80,8 @@ balik. Mendaftarkan keduanya menghilangkan ketidakpastian.
 
 ```bash
 cd "TUGAS AKHIR NOVICAN"
-composer create-project laravel/laravel vps-vpn-backend --no-interaction
-cd vps-vpn-backend
+composer create-project laravel/laravel vpn-backend --no-interaction
+cd vpn-backend
 rm -f database/database.sqlite     # proyek ini memakai MySQL, bukan SQLite
 ```
 
@@ -132,7 +132,7 @@ php artisan db:seed
 
 | Kunci | Nilai sementara |
 |---|---|
-| `ROUTEROS_BASE_URL` | `https://192.168.56.10` |
+| `ROUTEROS_BASE_URL` | `https://192.168.56.2` |
 | `ROUTEROS_USER` | `api-laravel` |
 | `ROUTEROS_PASSWORD` | `<ROUTEROS_PASSWORD>` |
 | `ROUTEROS_VERIFY_TLS` | `false` |
@@ -218,7 +218,7 @@ GRANT ALL PRIVILEGES ON vpn_lifecycle.* TO 'vpn_app'@'127.0.0.1';
 FLUSH PRIVILEGES;"
 
 # 3. Backend
-cd vps-vpn-backend
+cd vpn-backend
 composer install
 cp .env.example .env          # lalu isi nilai bagian 6
 php artisan key:generate
@@ -226,7 +226,7 @@ php artisan migrate
 php artisan db:seed
 
 # 4. Frontend
-cd ../vps-vpn-frontend
+cd ../vpn-frontend
 npm install
 npm run dev
 ```
@@ -238,24 +238,26 @@ npm run dev
 ### 12.1 Topologi lab
 
 ```
-Laravel (host) ──host-only 192.168.56.0/24──► CHR ──internal "vpslan" 10.10.10.0/24──► VPS
-                     (REST API :443)           │
-                                        klien VPN 10.20.0.0/24
+                       bridged (LAN)
+Laravel (host) ──host-only 192.168.56.0/24──► CHR ──internal "VPS Network" 10.10.10.0/24──► VPS
+                     (REST API :443)         .2 │ .1
+                                        klien VPN 10.10.20.0/24 (lewat bridged LAN)
 ```
 
-| Jaringan | Rentang | Fungsi |
-|---|---|---|
-| Host-only (`vboxnet0`) | `192.168.56.0/24` | Laravel ↔ REST API RouterOS. CHR di `.10` |
-| Internal `vpslan` | `10.10.10.0/24` | tempat VPS berada. CHR jadi gateway di `.1` |
-| Pool VPN | `10.20.0.0/24` | alamat yang dibagikan ke klien VPN |
+| Jaringan | Rentang | Fungsi | Interface CHR |
+|---|---|---|---|
+| Bridged (LAN) | ikut LAN fisik | klien VPN terhubung ke sini + jalur internet keluar | `ether1` |
+| Host-only (`vboxnet0`) | `192.168.56.0/24` | Laravel ↔ REST API RouterOS. CHR di `.2`, host di `.1` | `ether2` |
+| Internal `VPS Network` | `10.10.10.0/24` | tempat VPS berada. CHR jadi gateway di `.1` | `ether3` |
+| Pool VPN | `10.10.20.0/24` | alamat yang dibagikan ke klien VPN | — |
 
 ### 12.2 Adapter VirtualBox pada VM CHR
 
 | Adapter | Mode | Keterangan |
 |---|---|---|
-| 1 | Host-only Adapter (`vboxnet0`) | jalur manajemen; dipakai Laravel |
-| 2 | Internal Network, nama `vpslan` | jaringan VPS |
-| 3 | NAT | opsional, hanya bila CHR perlu internet |
+| 1 | Bridged Adapter | LAN fisik: klien VPN terhubung ke sini, dan jalur internet klien keluar lewat sini |
+| 2 | Host-only Adapter (`vboxnet0`) | jalur manajemen REST API; dipakai Laravel |
+| 3 | Internal Network, nama `VPS Network` | jaringan VPS |
 
 Bila `vboxnet0` belum ada: **File → Tools → Network Manager → Create**, biarkan
 `192.168.56.1/24`, DHCP server boleh dimatikan.
@@ -270,8 +272,8 @@ Bila `vboxnet0` belum ada: **File → Tools → Network Manager → Create**, bi
    3 → `ether3`.
 
 3. **Cek rentang host-only**: File → Tools → Network Manager, pastikan
-   `vboxnet0` beralamat `192.168.56.1/24`. Bila berbeda, sesuaikan alamat CHR
-   dan `ROUTEROS_BASE_URL` di `.env`.
+   `vboxnet0` beralamat `192.168.56.1/24` (host di `.1`). Bila berbeda,
+   sesuaikan alamat CHR dan `ROUTEROS_BASE_URL` di `.env`.
 
 4. **Boot & login pertama** di jendela konsol VirtualBox:
    - Login `admin`, password kosong (langsung Enter)
@@ -279,10 +281,10 @@ Bila `vboxnet0` belum ada: **File → Tools → Network Manager → Create**, bi
    - RouterOS 7 meminta password baru → isi dan **catat**. Ini password
      konsol `admin`, berbeda dari password user API di bagian 6.
 
-5. **Alamat manajemen** — ketik manual, hanya satu baris:
+5. **Alamat manajemen** — ketik manual, hanya satu baris (host-only = `ether2`):
 
    ```routeros
-   /ip address add address=192.168.56.10/24 interface=ether1
+   /ip address add address=192.168.56.2/24 interface=ether2
    ```
 
    > Konsol VirtualBox tidak mendukung tempel teks. Jangan menempel skrip
@@ -291,15 +293,22 @@ Bila `vboxnet0` belum ada: **File → Tools → Network Manager → Create**, bi
 6. **Pindah ke SSH** dari terminal host — di sini tempel teks berfungsi:
 
    ```bash
-   ping -c 3 192.168.56.10
-   ssh admin@192.168.56.10
+   ping -c 3 192.168.56.2
+   ssh admin@192.168.56.2
    ```
 
-7. **Internet untuk lisensi** (via adapter NAT):
+7. **Internet untuk lisensi** (via adapter bridged `ether1`):
 
    ```routeros
-   /ip dhcp-client add interface=ether3 disabled=no
+   /ip dhcp-client add interface=ether1 disabled=no
    /ping 8.8.8.8 count=3
+   ```
+
+   Bila LAN tanpa DHCP, pasang alamat statis dan rute default:
+
+   ```routeros
+   /ip address add address=192.168.1.x/24 interface=ether1
+   /ip route add dst-address=0.0.0.0/0 gateway=192.168.1.1
    ```
 
 8. **Trial lisensi p-unlimited 60 hari** — wajib bila ingin menguji perbedaan
@@ -318,89 +327,55 @@ Bila `vboxnet0` belum ada: **File → Tools → Network Manager → Create**, bi
 
 ### 12.3 Konfigurasi RouterOS
 
-Nyalakan VM, login sebagai `admin` tanpa password, lalu tempel blok berikut
-ke terminal RouterOS. Ganti `<ROUTEROS_PASSWORD>` dengan nilai yang sama seperti
-`ROUTEROS_PASSWORD` di `.env`.
+Seluruh konfigurasi ada di **`chr-setup.rsc`** (folder induk). Jangan menyalin
+ulang perintah di sini secara manual; impor berkasnya supaya hasilnya identik
+setiap kali. Langkah impor ada di **12.5b**, penjelasan baris demi baris ada
+di **12b**.
 
-```routeros
-# --- 1. Alamat antarmuka ---
-/ip address
-add address=192.168.56.10/24 interface=ether1 comment="manajemen - Laravel"
-add address=10.10.10.1/24 interface=ether2 comment="vpslan - gateway VPS"
+Isi berkas, ringkas, dengan pemetaan interface sesuai 12.2:
 
-# --- 2. Sertifikat untuk REST API (self-signed) ---
-/certificate
-add name=api-cert common-name=chr.lab key-size=2048 days-valid=3650
-sign api-cert
+| Langkah | Objek | Interface |
+|---|---|---|
+| Alamat `10.10.10.1/24` (gateway VPS Network) | `/ip address` | `ether3` |
+| Sertifikat `api-cert` + `www-ssl:443` | REST API | `ether2` (host-only) |
+| User `api-laravel` grup `api-lifecycle` | akses Laravel | — |
+| Pool `vpn-pool` `10.10.20.10-250` | alamat klien VPN | — |
+| Profile `vpn-dasar` / `vpn-standar` / `vpn-prioritas` | 2M / 5M / 10M | — |
+| L2TP server `use-ipsec=required` | layanan VPN | — |
+| Firewall `input`: UDP 500,1701,4500 + `ipsec-esp` accept | klien boleh masuk | — |
+| Firewall `forward`: 2 aturan `drop` (isolasi antar klien + tolak default) | INTI keputusan #3 | — |
+| NAT `srcnat` masquerade `10.10.20.0/24` | internet klien keluar | `out-interface=ether1` |
+| DNS `8.8.8.8,1.1.1.1` + `dns-server` pada tiap profile | resolusi nama klien | — |
 
-# --- 3. Aktifkan REST API lewat www-ssl ---
-/ip service
-set www-ssl certificate=api-cert disabled=no port=443
-set www disabled=no port=80
-set telnet disabled=yes
-set ftp disabled=yes
+Alamat manajemen `192.168.56.2/24` pada `ether2` **tidak** dibuat skrip; sudah
+dipasang manual di 12.2b langkah 5, sebab skrip dikirim lewat jaringan itu.
 
-# --- 4. Pengguna khusus API ---
-/user group
-add name=api-lifecycle policy=read,write,api,rest-api,test,winbox,password
-/user
-add name=api-laravel group=api-lifecycle password=<ROUTEROS_PASSWORD> comment="dipakai Laravel"
-
-# --- 5. Pool alamat klien VPN ---
-/ip pool
-add name=vpn-pool ranges=10.20.0.10-10.20.0.250
-
-# --- 6. PPP profile per paket bandwidth ---
-#     Nama HARUS sama dengan kolom ppp_profile di tabel paket_bandwidth.
-/ppp profile
-add name=vpn-dasar local-address=10.20.0.1 remote-address=vpn-pool rate-limit=2M/2M \
-    use-encryption=yes change-tcp-mss=yes
-add name=vpn-standar local-address=10.20.0.1 remote-address=vpn-pool rate-limit=5M/5M \
-    use-encryption=yes change-tcp-mss=yes
-add name=vpn-prioritas local-address=10.20.0.1 remote-address=vpn-pool rate-limit=10M/10M \
-    use-encryption=yes change-tcp-mss=yes
-
-# --- 7. L2TP server + IPsec ---
-/interface l2tp-server server
-set enabled=yes use-ipsec=required ipsec-secret=<IPSEC_PSK> \
-    default-profile=vpn-standar authentication=mschap2
-
-# --- 8. Firewall: izinkan L2TP/IPsec masuk ---
-/ip firewall filter
-add chain=input protocol=udp port=500,1701,4500 action=accept \
-    comment="vpnlc:sistem - L2TP/IPsec"
-add chain=input protocol=ipsec-esp action=accept comment="vpnlc:sistem - ESP"
-
-# --- 9. Isolasi klien VPN (INTI keputusan #3) ---
-#     Urutan penting: tolak dulu semua trafik klien VPN ke vpslan, lalu
-#     sistem menyisipkan aturan accept per akun DI ATAS aturan tolak ini.
-/ip firewall filter
-add chain=forward src-address=10.20.0.0/24 dst-address=10.10.10.0/24 \
-    action=drop comment="vpnlc:sistem - tolak default, aturan per akun disisipkan di atas"
-
-# --- 10. Klien VPN tidak boleh saling menjangkau ---
-/ip firewall filter
-add chain=forward src-address=10.20.0.0/24 dst-address=10.20.0.0/24 \
-    action=drop comment="vpnlc:sistem - isolasi antar klien" \
-    place-before=[find comment="vpnlc:sistem - tolak default, aturan per akun disisipkan di atas"]
-```
-
-> **Langkah 9 adalah kunci.** Aturan `drop` default dipasang sekali di awal;
-> setiap akun yang di-provision menambahkan aturan `accept` spesifik
-> (src = ip_vpn akun, dst = alamat VPS yang disetujui) yang disisipkan
-> **di atas** aturan drop tersebut. Dengan begitu akun tanpa aturan accept
-> otomatis tidak bisa menjangkau VPS mana pun.
+> **Aturan `drop` default pada `forward` adalah kunci.** Dipasang sekali di
+> awal; setiap akun yang di-provision menambahkan aturan `accept` spesifik
+> (src = `ip_vpn` akun, dst = alamat VPS yang disetujui) yang disisipkan
+> **di atas** aturan drop. Akun tanpa aturan accept otomatis tidak bisa
+> menjangkau VPS mana pun.
 
 ### 12.4 Isi `.env` Laravel
 
 ```
-ROUTEROS_BASE_URL=https://192.168.56.10
+ROUTEROS_BASE_URL=https://192.168.56.2
 ROUTEROS_USER=api-laravel
 ROUTEROS_PASSWORD=<ROUTEROS_PASSWORD>
 ROUTEROS_VERIFY_TLS=false
 ROUTEROS_TIMEOUT=10
-ROUTEROS_IP_POOL=vpn-pool
-ROUTEROS_ADDRESS_LIST=vpn-klien
+
+# Harus sama dengan <IPSEC_PSK> di chr-setup.rsc langkah 7
+ROUTEROS_IPSEC_PSK=<IPSEC_PSK>
+# Alamat CHR dari sudut pandang KLIEN L2TP (IP bridged/LAN ether1), BUKAN 192.168.56.2
+ROUTEROS_VPN_SERVER=<IP_LAN_CHR>
+# Harus sama dengan /ip pool di router
+ROUTEROS_POOL_RANGE=10.10.20.10-10.10.20.250
+
+# Sisanya punya nilai bawaan benar di config/routeros.php, isi hanya bila beda:
+# ROUTEROS_IP_POOL=vpn-pool
+# ROUTEROS_ADDRESS_LIST=vpn-klien
+# ROUTEROS_LOCAL_ADDRESS=10.10.20.1
 ```
 
 ### 12.5 Verifikasi
@@ -417,14 +392,18 @@ Semua harus `OK` sebelum fitur provisioning dipakai.
 ### 12.5b Cara cepat: impor berkas konfigurasi
 
 Berkas `chr-setup.rsc` di folder induk berisi seluruh konfigurasi bagian 12.3
-dan dapat langsung diimpor, sehingga hasilnya identik setiap kali diulang:
+dan dapat langsung diimpor, sehingga hasilnya identik setiap kali diulang.
+Isi dulu dua placeholder (`<ROUTEROS_PASSWORD>`, `<IPSEC_PSK>`) dengan nilai
+yang sama seperti `.env`:
 
 ```bash
-scp chr-setup.rsc admin@192.168.56.10:
-ssh admin@192.168.56.10 "/import file=chr-setup.rsc"
+sed -e "s|<ROUTEROS_PASSWORD>|nilai|" -e "s|<IPSEC_PSK>|nilai|" \
+    chr-setup.rsc > chr-setup.local.rsc
+scp chr-setup.local.rsc admin@192.168.56.2:chr-setup.rsc
+ssh admin@192.168.56.2 "/import file=chr-setup.rsc"
 ```
 
-Skrip mencetak progres 1/9 sampai 9/9. Terdapat jeda 15 detik yang disengaja
+Skrip mencetak progres 1/11 sampai 11/11. Terdapat jeda 15 detik yang disengaja
 setelah pembuatan sertifikat: penandatanganan sertifikat di RouterOS berjalan
 asinkron, dan bila `www-ssl` dikonfigurasi sebelum sertifikat selesai, service
 gagal aktif tanpa pesan galat yang jelas.
@@ -510,7 +489,7 @@ Hanya **satu** adapter. VPS tidak perlu jalur manajemen maupun internet.
 
 | Adapter | Mode | Nama |
 |---|---|---|
-| 1 | Internal Network | `vpslan` |
+| 1 | Internal Network | `VPS Network` |
 
 Adapter 2 dan 3 dimatikan. Memori dapat diturunkan ke 192 MB.
 
@@ -536,7 +515,7 @@ sandi baru saat diminta.
 ```
 
 Baris ketiga adalah **rute balik yang wajib**. Tanpa rute default menuju
-`10.10.10.1`, paket dari klien VPN (`10.20.0.0/24`) memang sampai ke VPS,
+`10.10.10.1`, paket dari klien VPN (`10.10.20.0/24`) memang sampai ke VPS,
 tetapi balasannya tidak tahu jalan pulang. Gejalanya menipu: koneksi VPN
 tersambung dan aturan firewall benar, namun halaman tidak pernah terbuka —
 dan kesalahan akan dicari di firewall, bukan di sisi VPS.
@@ -559,7 +538,7 @@ Lanjut ke bagian **f** (verifikasi dari router) dan seterusnya di bawah.
 
 Debian minimal yang didistribusikan dalam format OVA. Unduh dari
 https://www.turnkeylinux.org/core (pilih format VM/OVA), impor dua kali
-dengan MAC baru, adapter 1 ke `vpslan` dan adapter 2 NAT, lalu setel alamat
+dengan MAC baru, adapter 1 ke `VPS Network` dan adapter 2 NAT, lalu setel alamat
 statis di `/etc/network/interfaces`:
 
 ```
@@ -567,7 +546,7 @@ auto eth0
 iface eth0 inet static
         address 10.10.10.11
         netmask 255.255.255.0
-        up ip route add 10.20.0.0/24 via 10.10.10.1
+        up ip route add 10.10.20.0/24 via 10.10.10.1
 ```
 
 Panel webnya di port 12321 dapat dipakai sebagai bukti akses.
@@ -590,7 +569,7 @@ Ulangi untuk kedua VM:
 | Type / Version | Linux / Other Linux (64-bit) |
 | Memory | 512 MB |
 | Disk | 2 GB |
-| Adapter 1 | **Internal Network**, nama `vpslan` |
+| Adapter 1 | **Internal Network**, nama `VPS Network` |
 | Adapter 2 | **NAT** (hanya untuk mengunduh paket saat instalasi) |
 | Optical | ISO Alpine |
 
@@ -630,7 +609,7 @@ Setelah selesai: `poweroff`, lepas ISO dari VM, nyalakan kembali.
 #### d. Rute balik ke klien VPN — WAJIB
 
 `eth0` sengaja tidak diberi gateway supaya rute default tetap lewat `eth1`
-(internet). Konsekuensinya, balasan menuju klien VPN di `10.20.0.0/24` akan
+(internet). Konsekuensinya, balasan menuju klien VPN di `10.10.20.0/24` akan
 ikut keluar lewat `eth1` dan hilang — koneksi tampak "tersambung tapi tidak
 ada balasan".
 
@@ -641,14 +620,14 @@ Tambahkan rute statis yang bertahan setelah reboot. Edit
 iface eth0 inet static
         address 10.10.10.11
         netmask 255.255.255.0
-        up ip route add 10.20.0.0/24 via 10.10.10.1
+        up ip route add 10.10.20.0/24 via 10.10.10.1
 ```
 
 Terapkan:
 
 ```sh
 rc-service networking restart
-ip route          # harus memuat: 10.20.0.0/24 via 10.10.10.1 dev eth0
+ip route          # harus memuat: 10.10.20.0/24 via 10.10.10.1 dev eth0
 ```
 
 #### e. Layanan bukti akses
@@ -686,7 +665,7 @@ Masuk sebagai admin, buka **Daftar VPS**, tambahkan keduanya, lalu tekan
 #### h. Uji isolasi — inti pembuktian keamanan
 
 1. Ajukan dan setujui satu akun untuk **VPS-APP-01** saja.
-2. Sambungkan klien L2TP dari HP atau laptop ke `192.168.56.10` memakai
+2. Sambungkan klien L2TP dari HP atau laptop ke `192.168.56.2` memakai
    kredensial dari halaman detail akun.
 3. Dari perangkat itu:
 
@@ -728,11 +707,11 @@ akun**, bukan memasang router dari nol.
 ### 12b.2 Lapisan 1 — manual sebelum skrip
 
 ```routeros
-/ip address add address=192.168.56.10/24 interface=ether1
+/ip address add address=192.168.56.2/24 interface=ether2
 ```
 
-Hanya satu baris. Skrip dikirim lewat jaringan, sehingga router harus sudah
-dapat dihubungi sebelum skrip bisa masuk.
+Hanya satu baris, pada interface host-only (`ether2`). Skrip dikirim lewat
+jaringan itu, sehingga router harus sudah dapat dihubungi sebelum skrip masuk.
 
 Konsol VirtualBox tidak mendukung tempel teks, dan mengetik seluruh skrip
 secara manual membuka peluang salah ketik yang besar. Karena itu polanya:
@@ -743,10 +722,11 @@ satu baris di konsol, sisanya lewat SSH.
 #### Langkah 1: alamat jaringan VPS
 
 ```routeros
-/ip address add address=10.10.10.1/24 interface=ether2
+/ip address add address=10.10.10.1/24 interface=ether3
 ```
 
-Router menjadi gerbang bagi jaringan tempat VPS berada.
+Router menjadi gerbang bagi jaringan internal `VPS Network` tempat VPS berada
+(`ether3`).
 
 > Bila dilewat: VPS tidak memiliki gateway, dan aturan isolasi pada chain
 > `forward` tidak pernah dilalui trafik apa pun karena tidak ada jalur menuju
@@ -783,8 +763,8 @@ manusia lewat Winbox. Pembedaan ini langsung berguna bagi deteksi drift.
 #### Langkah 5 dan 6: bahan yang dirujuk saat provisioning
 
 ```routeros
-/ip pool add name=vpn-pool ranges=10.20.0.10-10.20.0.250
-/ppp profile add name=vpn-dasar local-address=10.20.0.1 remote-address=vpn-pool \
+/ip pool add name=vpn-pool ranges=10.10.20.10-10.10.20.250
+/ppp profile add name=vpn-dasar local-address=10.10.20.1 remote-address=vpn-pool \
     rate-limit=2M/2M use-encryption=yes change-tcp-mss=yes
 ```
 
@@ -832,9 +812,9 @@ Bagian terpenting dari seluruh skrip.
 
 ```routeros
 /ip firewall filter
-add chain=forward src-address=10.20.0.0/24 dst-address=10.20.0.0/24 action=drop \
+add chain=forward src-address=10.10.20.0/24 dst-address=10.10.20.0/24 action=drop \
     comment="vpnlc:sistem - isolasi antar klien"
-add chain=forward src-address=10.20.0.0/24 dst-address=10.10.10.0/24 action=drop \
+add chain=forward src-address=10.10.20.0/24 dst-address=10.10.10.0/24 action=drop \
     comment="vpnlc:sistem - tolak default"
 ```
 
@@ -845,9 +825,9 @@ Setiap akun yang di-provision kemudian menyisipkan satu aturan `accept`
 **tepat di atas** aturan tolak tersebut:
 
 ```
-drop    10.20.0.0/24 -> 10.20.0.0/24     isolasi antar klien
-accept  10.20.0.14   -> vpnlc-akun-8     disisipkan sistem
-drop    10.20.0.0/24 -> 10.10.10.0/24    tolak default
+drop    10.10.20.0/24 -> 10.10.20.0/24     isolasi antar klien
+accept  10.10.20.14   -> vpnlc-akun-8     disisipkan sistem
+drop    10.10.20.0/24 -> 10.10.10.0/24    tolak default
 ```
 
 RouterOS membaca aturan dari atas ke bawah dan berhenti pada yang pertama
@@ -866,16 +846,17 @@ aturan drop.
 
 ```routeros
 /ip firewall nat
-add chain=srcnat src-address=10.20.0.0/24 out-interface=ether3 action=masquerade
+add chain=srcnat src-address=10.10.20.0/24 out-interface=ether1 action=masquerade
 /ip dns
 set servers=8.8.8.8,1.1.1.1 allow-remote-requests=yes
-/ppp profile set [find name~"^vpn-"] dns-server=10.20.0.1
+/ppp profile set [find name~"^vpn-"] dns-server=10.10.20.1
 ```
 
 Trafik klien menuju internet sebenarnya sudah lolos chain `forward`. Yang
-hilang adalah NAT: paket keluar membawa alamat asal `10.20.0.x` yang tidak
+hilang adalah NAT: paket keluar membawa alamat asal `10.10.20.x` yang tidak
 dikenal internet, sehingga balasannya tidak tahu jalan pulang. Gejalanya
 tampak seperti VPN memutus internet, padahal firewall tidak menolak apa pun.
+`out-interface=ether1` = interface bridged yang menuju LAN dan internet.
 
 DNS adalah persoalan terpisah. Tanpa `dns-server` pada profile, klien dapat
 membuka alamat IP tetapi tidak dapat membuka nama domain apa pun.
@@ -896,17 +877,19 @@ Winbox.
 
 ### 12b.5 Menyiapkan MikroTik baru
 
-1. Manual di konsol:
+1. Manual di konsol (interface host-only):
 
    ```routeros
-   /ip address add address=192.168.56.10/24 interface=ether1
+   /ip address add address=192.168.56.2/24 interface=ether2
    ```
 
-2. Kirim dan impor:
+2. Isi placeholder, kirim, dan impor:
 
    ```bash
-   scp chr-setup.rsc admin@192.168.56.10:
-   ssh admin@192.168.56.10 "/import file=chr-setup.rsc"
+   sed -e "s|<ROUTEROS_PASSWORD>|nilai|" -e "s|<IPSEC_PSK>|nilai|" \
+       chr-setup.rsc > chr-setup.local.rsc
+   scp chr-setup.local.rsc admin@192.168.56.2:chr-setup.rsc
+   ssh admin@192.168.56.2 "/import file=chr-setup.rsc"
    ```
 
 3. Yang wajib disesuaikan sebelum impor:
@@ -915,9 +898,9 @@ Winbox.
    |---|---|
    | `<ROUTEROS_PASSWORD>` | selalu; harus sama dengan `.env` |
    | `<IPSEC_PSK>` | selalu; harus sama dengan `.env` |
-   | `ether2`, `ether3` | urutan adapter VirtualBox berbeda |
+   | `ether3` (alamat VPS Network), `ether1` (masquerade) | urutan adapter VirtualBox berbeda dari 12.2 |
    | `10.10.10.0/24` | jaringan VPS memakai rentang lain |
-   | `10.20.0.0/24` dan pool | harus sama dengan `ROUTEROS_POOL_RANGE` |
+   | `10.10.20.0/24` dan pool | harus sama dengan `ROUTEROS_POOL_RANGE` |
 
 4. Verifikasi:
 
@@ -962,16 +945,16 @@ server hanya mendengarkan di `127.0.0.1` dan tidak dapat dibuka dari PC lain.
 
 ```bash
 # 1. Backend API
-cd vps-vpn-backend && php artisan serve --host=0.0.0.0 --port=8000
+cd vpn-backend && php artisan serve --host=0.0.0.0 --port=8000
 
 # 2. Queue worker (WAJIB) — memproses provisioning ke router
-cd vps-vpn-backend && php artisan queue:work
+cd vpn-backend && php artisan queue:work
 
 # 3. Penjadwal — log sesi, ping VPS, deteksi drift, kedaluwarsa
-cd vps-vpn-backend && php artisan schedule:work
+cd vpn-backend && php artisan schedule:work
 
 # 4. Frontend
-cd vps-vpn-frontend && npm run dev -- --host 0.0.0.0
+cd vpn-frontend && npm run dev -- --host 0.0.0.0
 ```
 
 Tanpa proses 2, pengajuan yang disetujui berhenti di status
@@ -993,8 +976,8 @@ Ganti `<IP_KALI>` dengan alamat LAN mesin yang menjalankan Laravel.
 
 | Berkas | Kunci | Nilai |
 |---|---|---|
-| `vps-vpn-frontend/.env` | `VITE_API_BASE_URL` | `http://<IP_KALI>:8000/api` |
-| `vps-vpn-backend/config/cors.php` | `allowed_origins_patterns` | pola LAN, mis. `#^http://192\.168\.1\.\d{1,3}:5173$#` |
+| `vpn-frontend/.env` | `VITE_API_BASE_URL` | `http://<IP_KALI>:8000/api` |
+| `vpn-backend/config/cors.php` | `allowed_origins_patterns` | pola LAN, mis. `#^http://192\.168\.1\.\d{1,3}:5173$#` |
 
 > `VITE_API_BASE_URL` dipanggang saat build, jadi setiap kali alamat berubah
 > nilainya harus disunting lalu `npm run dev` dijalankan ulang.
@@ -1055,9 +1038,9 @@ Dengan akun yang hanya disetujui untuk VPS-APP-01:
 Aturan yang bekerja, berurutan pada chain `forward`:
 
 ```
-drop    10.20.0.0/24 -> 10.20.0.0/24     isolasi antar klien
-accept  10.20.0.10   -> vpnlc-akun-4     aturan milik akun ini
-drop    10.20.0.0/24 -> 10.10.10.0/24    tolak default
+drop    10.10.20.0/24 -> 10.10.20.0/24     isolasi antar klien
+accept  10.10.20.10   -> vpnlc-akun-4     aturan milik akun ini
+drop    10.10.20.0/24 -> 10.10.10.0/24    tolak default
 ```
 
 Address list `vpnlc-akun-4` hanya berisi `10.10.10.11`. Tujuan lain di
@@ -1125,15 +1108,16 @@ Dua hal terpisah, keduanya diperlukan:
 ```routeros
 # NAT: tanpa ini paket keluar tetapi balasannya tidak tahu jalan pulang,
 # dan gejalanya tampak seperti "VPN memutus internet".
+# ether1 = interface bridged yang menuju LAN dan internet.
 /ip firewall nat
-add chain=srcnat src-address=10.20.0.0/24 out-interface=ether3 action=masquerade
+add chain=srcnat src-address=10.10.20.0/24 out-interface=ether1 action=masquerade
 
 # DNS: tanpa ini klien dapat menjangkau VPS lewat alamat IP,
 # tetapi tidak dapat membuka nama domain apa pun.
 /ip dns
 set servers=8.8.8.8,1.1.1.1 allow-remote-requests=yes
 /ppp profile
-set [find name~"^vpn-"] dns-server=10.20.0.1
+set [find name~"^vpn-"] dns-server=10.10.20.1
 ```
 
 Sudah termasuk dalam `chr-setup.rsc` langkah 10 dan 11.
@@ -1150,10 +1134,10 @@ Seluruhnya pada satu jaringan yang sama. Perkiraan waktu 15 menit.
 |---|---|
 | CHR gateway + 2 VM VPS | menyala di VirtualBox |
 | Mailpit | `docker start mailpit` |
-| Backend | `cd vps-vpn-backend && php artisan serve --host=0.0.0.0 --port=8000` |
-| Queue worker | `cd vps-vpn-backend && php artisan queue:work` |
-| Penjadwal | `cd vps-vpn-backend && php artisan schedule:work` |
-| Frontend | `cd vps-vpn-frontend && npm run dev -- --host 0.0.0.0` |
+| Backend | `cd vpn-backend && php artisan serve --host=0.0.0.0 --port=8000` |
+| Queue worker | `cd vpn-backend && php artisan queue:work` |
+| Penjadwal | `cd vpn-backend && php artisan schedule:work` |
+| Frontend | `cd vpn-frontend && npm run dev -- --host 0.0.0.0` |
 
 Periksa kesiapan router lebih dulu:
 
@@ -1338,9 +1322,9 @@ tersedia. Jadwal lima menit dan aturan tiga kegagalan tidak berubah.
 
 | Gejala | Penyebab | Perbaikan |
 |---|---|---|
-| Ping ke VPS 100% loss, ARP kosong | Adapter `vpslan` gateway tidak aktif; `ether2 running=false` | VirtualBox → Adapter 2 → centang **Enable** dan **Cable Connected** |
+| Ping ke VPS 100% loss, ARP kosong | Adapter `VPS Network` gateway tidak aktif; `ether3 running=false` | VirtualBox → Adapter 3 → centang **Enable** dan **Cable Connected** |
 | Ping ke `10.10.10.1` berhasil padahal jaringan mati | Router mem-ping alamatnya sendiri secara lokal | Uji dengan alamat VPS, bukan alamat router |
-| VPN tersambung, halaman VPS tidak terbuka | VPS tidak punya rute balik ke `10.20.0.0/24` | Tambahkan rute default ke `10.10.10.1` di VPS |
+| VPN tersambung, halaman VPS tidak terbuka | VPS tidak punya rute balik ke `10.10.20.0/24` | Tambahkan rute default ke `10.10.10.1` di VPS |
 | Dua VPS, salah satu tidak terjangkau | MAC kembar karena OVA yang sama diimpor ulang | Impor ulang dengan **Generate new MAC addresses** |
 | PC lain tidak bisa membuka aplikasi | Server terikat `127.0.0.1` | Jalankan dengan `--host=0.0.0.0` |
 | Galat CORS di console browser | Origin PC lain belum diizinkan | Sesuaikan `allowed_origins_patterns` |
@@ -1361,7 +1345,7 @@ tersedia. Jadwal lima menit dan aturan tiga kegagalan tidak berubah.
 | 2026-09-05 | CHR RouterOS 7.23.5 dikonfigurasi lewat `chr-setup.rsc`; `router:cek` lolos 9 prasyarat; uji CRUD `ppp/secret` ke router sungguhan berhasil |
 | 2026-09-05 | Layanan provisioning + rollback; `vpn:uji-siklus` lolos penuh tanpa objek yatim; 31 endpoint API; dashboard admin Vue (login, pengajuan, akun, VPS, sinkronisasi) |
 | 2026-09-05 | Log sesi, kedaluwarsa otomatis, perpanjangan, dan deteksi drift; siklus hidup terbukti tertutup (provision → disable → enable → expire → extend → aktif) |
-| 2026-09-05 | Dua VPS tiruan berbasis CHR di `vpslan`; koneksi L2TP dari klien LAN berhasil; aplikasi dibuka untuk akses LAN |
+| 2026-09-05 | Dua VPS tiruan berbasis CHR di `VPS Network`; koneksi L2TP dari klien LAN berhasil; aplikasi dibuka untuk akses LAN |
 | 2026-09-06 | Tampilan ping VPS diperjelas dan tombol Periksa semua VPS ditambahkan; status DOWN tetap memakai ambang tiga kegagalan |
 | 2026-09-06 | Font UI diseragamkan dan em dash dihapus dari teks frontend sesuai preferensi pengguna |
 | 2026-09-06 | Edit akun username, password, paket, dan VPS tujuan ditambahkan melalui job terenkripsi dengan rollback router dan audit tanpa password; 28 tes backend (96 assertions) serta build frontend lulus |
@@ -1376,7 +1360,7 @@ Diperiksa ulang 2026-09-06 terhadap kondisi kode, bukan ingatan.
 
 - [x] CHR dinyalakan dan dikonfigurasi (bagian 12)
 - [x] `php artisan router:cek` lolos seluruh prasyarat
-- [x] Dua VM VPS disiapkan di jaringan `vpslan` (bagian 12.6)
+- [x] Dua VM VPS disiapkan di jaringan `VPS Network` (bagian 12.6)
 - [x] Koneksi L2TP dari klien pada jaringan LAN berhasil
 - [x] Edit username, password, paket bandwidth, dan VPS tujuan dari detail akun
 - [x] Periksa seluruh VPS dari satu tombol dengan progres dan hasil per VPS

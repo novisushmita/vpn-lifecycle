@@ -35,27 +35,27 @@ MikroTik, (3) dijamin konsisten antara keduanya.
 ## Struktur
 
 ```
-vps-vpn-backend/     Laravel 13 — API, layanan siklus hidup, penjadwal
-vps-vpn-frontend/    Vue 3 + Vite — halaman publik dan dashboard admin
+vpn-backend/     Laravel 13 — API, layanan siklus hidup, penjadwal
+vpn-frontend/    Vue 3 + Vite — halaman publik dan dashboard admin
 ```
 
 ## Arsitektur lingkungan uji
 
 ```
 Kali (host)                                VirtualBox
-├── Laravel  :8000  ──host-only──►  CHR gateway ──vpslan──► VPS-APP-01 10.10.10.11
-├── Vue      :5173                   192.168.56.10          VPS-DB-02  10.10.10.12
+├── Laravel  :8000  ──host-only──►  CHR gateway ──VPS Network──► VPS-APP-01 10.10.10.11
+├── Vue      :5173                   192.168.56.2          VPS-DB-02  10.10.10.12
 ├── MariaDB  :3306                   10.10.10.1
-└── queue worker + scheduler         klien VPN 10.20.0.0/24
+└── queue worker + scheduler         klien VPN 10.10.20.0/24
 ```
 
 ## Menjalankan
 
 ```bash
-cd vps-vpn-backend  && php artisan serve --host=0.0.0.0 --port=8000
-cd vps-vpn-backend  && php artisan queue:work        # WAJIB, memproses provisioning
-cd vps-vpn-backend  && php artisan schedule:work     # log sesi, ping, drift, kedaluwarsa
-cd vps-vpn-frontend && npm run dev -- --host 0.0.0.0
+cd vpn-backend  && php artisan serve --host=0.0.0.0 --port=8000
+cd vpn-backend  && php artisan queue:work        # WAJIB, memproses provisioning
+cd vpn-backend  && php artisan schedule:work     # log sesi, ping, drift, kedaluwarsa
+cd vpn-frontend && npm run dev -- --host 0.0.0.0
 ```
 
 Rincian pemasangan dari nol ada di `SETUP.md`.
@@ -84,7 +84,7 @@ Rincian pemasangan dari nol ada di `SETUP.md`.
 ## Pengujian
 
 ```bash
-cd vps-vpn-backend && php artisan test
+cd vpn-backend && php artisan test
 ```
 
 Sumber data Bab 4 terkumpul otomatis di tabel `operasi_router`: kolom

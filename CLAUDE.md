@@ -18,7 +18,7 @@ Ini **Tugas Akhir (skripsi)**, bukan proyek produksi. Konsekuensinya:
 - Bahasa UI, komentar berorientasi domain, dan istilah: **Bahasa Indonesia**.
   Nama variabel/tabel/kode: campuran wajar (istilah domain Indonesia seperti
   `pengajuan`, istilah teknis Inggris seperti `provisioning`). Ikuti pola
-  yang sudah ada di `vps-vpn-frontend/src/data/`.
+  yang sudah ada di `vpn-frontend/src/data/`.
 
 ### Gap penelitian yang diangkat
 
@@ -483,7 +483,7 @@ Simpan: siapa, apa, kapan, IP admin.
 
 ## 5. Kondisi Frontend Saat Ini
 
-Lokasi: `vps-vpn-frontend/`. Vue 3 + Vite + Vue Router. Integrasi HTTP memakai
+Lokasi: `vpn-frontend/`. Vue 3 + Vite + Vue Router. Integrasi HTTP memakai
 `src/lib/api.js` berbasis `fetch`, token admin disimpan melalui
 `src/lib/auth.js`, dan route admin dilindungi navigation guard.
 
@@ -579,12 +579,13 @@ adalah **NAT**. Tanpa aturan masquerade, paket keluar tetapi balasannya tidak
 tahu jalan pulang, dan gejalanya tampak seperti "VPN memutus internet".
 
 ```routeros
+# out-interface = interface bridged CHR yang menuju LAN/internet (ether1 di lab ini)
 /ip firewall nat
-add chain=srcnat src-address=10.20.0.0/24 out-interface=ether3 action=masquerade
+add chain=srcnat src-address=10.10.20.0/24 out-interface=ether1 action=masquerade
 /ip dns
 set servers=8.8.8.8,1.1.1.1 allow-remote-requests=yes
 /ppp profile
-set [find name~"^vpn-"] dns-server=10.20.0.1
+set [find name~"^vpn-"] dns-server=10.10.20.1
 ```
 
 Tanpa baris DNS, klien terhubung dan dapat menjangkau VPS lewat alamat IP,

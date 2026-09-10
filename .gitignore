@@ -8,22 +8,38 @@ klien-uji.rsc
 .agents/
 .run/
 
-# Laravel
-vps-vpn-backend/.env
-vps-vpn-backend/vendor/
-vps-vpn-backend/storage/*.key
-vps-vpn-backend/storage/logs/*
-vps-vpn-backend/storage/framework/cache/data/*
-vps-vpn-backend/storage/framework/sessions/*
-vps-vpn-backend/storage/framework/views/*
-vps-vpn-backend/bootstrap/cache/*
-vps-vpn-backend/database/*.sqlite
+# Laravel (vpn-backend)
+vpn-backend/.env
+vpn-backend/.env.*
+!vpn-backend/.env.example
+vpn-backend/vendor/
+vpn-backend/node_modules/
+vpn-backend/public/build/
+vpn-backend/public/hot
+vpn-backend/storage/*.key
+vpn-backend/storage/logs/*
+!vpn-backend/storage/logs/.gitignore
+vpn-backend/storage/framework/cache/data/*
+vpn-backend/storage/framework/sessions/*
+vpn-backend/storage/framework/testing/*
+vpn-backend/storage/framework/views/*
+vpn-backend/bootstrap/cache/*
+!vpn-backend/bootstrap/cache/.gitignore
+vpn-backend/database/*.sqlite
+vpn-backend/.phpunit.result.cache
+vpn-backend/auth.json
 
-# Vue
-vps-vpn-frontend/.env
-vps-vpn-frontend/node_modules/
-vps-vpn-frontend/dist/
+# Vue (vpn-frontend)
+vpn-frontend/.env
+vpn-frontend/.env.*
+!vpn-frontend/.env.example
+vpn-frontend/node_modules/
+vpn-frontend/dist/
+vpn-frontend/*.local
 
-# OS
+# OS / editor
 .DS_Store
+Thumbs.db
 *.swp
+.idea/
+.vscode/
