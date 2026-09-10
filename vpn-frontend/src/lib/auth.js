@@ -29,13 +29,22 @@ export async function keluar() {
   admin.value = null;
 }
 
-/** Memulihkan sesi setelah halaman di-refresh. */
+/**
+ * Memulihkan sesi setelah halaman di-refresh.
+ *
+ * Hanya 401 (token dicabut/kedaluwarsa) yang mengakhiri sesi. Galat jaringan
+ * atau 500 sesaat tidak boleh membuat admin ter-logout: itu bikin dashboard
+ * terasa "lepas sendiri" tiap backend tersendat.
+ */
 export async function muatAdmin() {
   if (!token.value) return null;
   try {
     admin.value = await apiAdmin("admin/me");
-  } catch {
-    admin.value = null;
+  } catch (e) {
+    if (e?.status === 401) {
+      simpanToken("");
+      admin.value = null;
+    }
   }
   return admin.value;
 }

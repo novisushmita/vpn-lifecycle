@@ -1,9 +1,10 @@
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { masuk } from "../../lib/auth";
 
 const router = useRouter();
+const route = useRoute();
 const email = ref("");
 const password = ref("");
 const galat = ref("");
@@ -14,7 +15,8 @@ async function handleMasuk() {
   memproses.value = true;
   try {
     await masuk(email.value, password.value);
-    router.push("/admin");
+    const lanjut = route.query.lanjut;
+    router.push(typeof lanjut === "string" && lanjut.startsWith("/admin") ? lanjut : "/admin");
   } catch (e) {
     galat.value = e.errors?.email?.[0] || e.message;
   } finally {

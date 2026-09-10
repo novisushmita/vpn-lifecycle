@@ -17,7 +17,7 @@ import AkunDetail from "../views/admin/AkunDetail.vue";
 import DriftList from "../views/admin/DriftList.vue";
 import Pengaturan from "../views/admin/Pengaturan.vue";
 
-import { sudahMasuk, muatAdmin } from "../lib/auth";
+import { admin, sudahMasuk, muatAdmin } from "../lib/auth";
 
 const routes = [
   { path: "/", redirect: "/pengajuan-vpn" },
@@ -65,9 +65,17 @@ router.beforeEach(async (to) => {
     return { name: "admin-login", query: { lanjut: to.fullPath } };
   }
 
-  // Token bisa saja sudah dicabut di server; pastikan masih sah.
-  const admin = await muatAdmin();
-  return admin ? true : { name: "admin-login" };
+  // Verifikasi token ke server sekali saja (mis. setelah refresh halaman).
+  // Setelah profil termuat, navigasi berikutnya cukup percaya keberadaan
+  // token; pencabutan/kedaluwarsa tetap tertangkap lewat 401 di api.js.
+  if (!admin.value) {
+    await muatAdmin();
+    if (!sudahMasuk()) {
+      return { name: "admin-login", query: { lanjut: to.fullPath } };
+    }
+  }
+
+  return true;
 });
 
 export default router;

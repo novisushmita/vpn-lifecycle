@@ -50,7 +50,10 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Token dashboard kedaluwarsa setelah 12 jam idle-nya sesi kerja admin.
+    // Sanctum menolak token yang lebih tua dari ini; frontend akan meminta
+    // login ulang lewat penanganan 401 di src/lib/api.js.
+    'expiration' => (int) env('SANCTUM_TOKEN_EXPIRATION', 720),
 
     /*
     |--------------------------------------------------------------------------
