@@ -47,7 +47,7 @@ function gambarDonutRingkasan() {
   chartVps?.destroy();
   chartPengajuan?.destroy();
   chartIp?.destroy();
-  if (!data.value) return;
+  if (!data.value || !kanvasUptime.value) return; // v-if="data" belum ter-render
 
   // Donut uptime cuma dekorasi (uptime bukan persentase) — penuh hijau kalau
   // tersambung, penuh merah kalau tidak, abu kalau belum pernah dicek.
@@ -119,6 +119,7 @@ async function muatGrafikSinkron() {
     if (sinkronKosong.value) return;
 
     await nextTick();
+    if (!kanvasSinkron.value) return; // v-if="data" belum ter-render (fetch dashboard belum kelar)
     chartSinkron?.destroy();
 
     const label = batch.map((o) => jam(o.selesai_pada));
@@ -188,6 +189,7 @@ async function muatGrafikDrift() {
     if (driftKosong.value) return;
 
     await nextTick();
+    if (!kanvasDrift.value) return;
     chartDrift?.destroy();
 
     const label = batch.map((o) => jam(o.selesai_pada));
@@ -269,6 +271,7 @@ async function muatGrafikPing() {
     const warna = (status) => (status === "down" ? "#d93025" : "#0f9d58");
 
     await nextTick();
+    if (!kanvasPing.value) return;
     chartPing?.destroy();
 
     chartPing = new Chart(kanvasPing.value, {

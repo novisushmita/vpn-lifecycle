@@ -126,6 +126,22 @@ async function lihatKredensial() {
   }
 }
 
+const mengirimUlang = ref(false);
+
+async function kirimUlangKredensial() {
+  mengirimUlang.value = true;
+  galat.value = "";
+  pesan.value = "";
+  try {
+    const r = await apiAdmin(`admin/akun/${a.value.id}/kirim-ulang-kredensial`, { method: "POST" });
+    pesan.value = r.message;
+  } catch (e) {
+    galat.value = e.message;
+  } finally {
+    mengirimUlang.value = false;
+  }
+}
+
 async function hapus() {
   memproses.value = true;
   galat.value = "";
@@ -266,12 +282,17 @@ onBeforeUnmount(() => clearInterval(jamTangan));
       <p class="section-subtitle">
         Setiap kali kredensial ditampilkan, tindakan ini dicatat pada jejak audit.
       </p>
-      <div v-if="!kredensial" style="margin-top: 10px">
-        <button class="btn btn-warning btn-sm" @click="lihatKredensial">
+      <div style="margin-top: 10px" class="aksi-baris">
+        <button v-if="!kredensial" class="btn btn-warning btn-sm" @click="lihatKredensial">
           Tampilkan kredensial
         </button>
+        <button
+          class="btn btn-secondary btn-sm"
+          :disabled="mengirimUlang"
+          @click="kirimUlangKredensial"
+        >{{ mengirimUlang ? "Mengirim..." : "Kirim ulang email kredensial" }}</button>
       </div>
-      <div v-else class="detail-grid">
+      <div v-if="kredensial" class="detail-grid" style="margin-top: 10px">
         <div class="detail-item">
           <div class="detail-item__label">Server VPN</div>
           <div class="detail-item__value mono">{{ kredensial.server }}</div>

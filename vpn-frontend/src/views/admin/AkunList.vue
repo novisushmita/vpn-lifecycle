@@ -92,7 +92,7 @@ onMounted(muat);
             <td><span class="badge" :class="warna[a.status]">{{ a.status_label }}</span></td>
             <td>
               <span v-if="a.sisa_hari !== null" :style="a.sisa_hari <= 3 ? 'color:#a3352b' : ''">
-                <template v-if="a.sisa_hari <= 0">{{ a.sisa_jam }} jam lagi</template>
+                <template v-if="a.sisa_hari <= 0">{{ a.sisa_jam }} jam</template>
                 <template v-else>{{ a.sisa_hari }} hari</template>
               </span>
             </td>
