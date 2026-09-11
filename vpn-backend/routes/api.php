@@ -59,6 +59,7 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('akun/{akun}', [AkunVpnController::class, 'show']);
     Route::put('akun/{akun}', [AkunVpnController::class, 'update']);
     Route::get('akun/{akun}/kredensial', [AkunVpnController::class, 'kredensial']);
+    Route::post('akun/{akun}/kirim-ulang-kredensial', [AkunVpnController::class, 'kirimUlangKredensial']);
     Route::get('akun/{akun}/operasi', [AkunVpnController::class, 'operasi']);
     Route::get('akun/{akun}/sesi', [AkunVpnController::class, 'sesi']);
     Route::post('akun/{akun}/nonaktifkan', [AkunVpnController::class, 'nonaktifkan']);

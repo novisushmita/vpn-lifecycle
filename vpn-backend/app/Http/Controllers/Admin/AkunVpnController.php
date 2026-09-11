@@ -7,15 +7,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\AkunVpnResource;
 use App\Jobs\OperasiAkunJob;
 use App\Jobs\ProvisionAkunJob;
+use App\Mail\KredensialVpn;
 use App\Models\AkunVpn;
 use App\Models\OperasiRouter;
 use App\Services\PencatatAudit;
+use App\Services\Pengaturan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Http\Requests\EditAkunRequest;
 use App\Jobs\EditAkunJob;
 use App\Services\Vpn\EditAkunService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class AkunVpnController extends Controller
 {
@@ -77,8 +80,46 @@ class AkunVpnController extends Controller
             'username' => $akun->username,
             'password' => $akun->password,
             'ip_vpn'   => $akun->ip_vpn,
-            'server'   => parse_url((string) config('routeros.base_url'), PHP_URL_HOST),
+            'server'   => $this->alamatServerVpn(),
         ]);
+    }
+
+    /**
+     * Kirim ulang email kredensial (mis. pemohon bilang emailnya hilang/tidak
+     * masuk). Pakai mailable & audit yang sama dengan pengiriman pertama di
+     * ProvisionAkunJob — cuma dipicu manual oleh admin.
+     */
+    public function kirimUlangKredensial(AkunVpn $akun): JsonResponse
+    {
+        abort_unless(
+            in_array($akun->status, [StatusAkun::Aktif, StatusAkun::AkanKedaluwarsa, StatusAkun::Dinonaktifkan], true),
+            422,
+            'Akun ini belum pernah terpasang di router, belum ada kredensial untuk dikirim.',
+        );
+
+        $akun->loadMissing('pengajuan');
+
+        Mail::to($akun->pengajuan->email)->queue(new KredensialVpn(
+            $akun,
+            $akun->password,
+            $this->alamatServerVpn(),
+            (string) config('routeros.ipsec_psk'),
+        ));
+
+        PencatatAudit::catat(
+            'kirim_ulang_kredensial',
+            "Mengirim ulang email kredensial akun {$akun->username} ke {$akun->pengajuan->email}.",
+            $akun,
+        );
+
+        return response()->json(['message' => "Email kredensial dikirim ulang ke {$akun->pengajuan->email}."]);
+    }
+
+    private function alamatServerVpn(): string
+    {
+        return (string) (Pengaturan::ambil('alamat_server_vpn')
+            ?: config('routeros.vpn_server')
+            ?: parse_url((string) config('routeros.base_url'), PHP_URL_HOST));
     }
 
     public function nonaktifkan(Request $request, AkunVpn $akun): JsonResponse
