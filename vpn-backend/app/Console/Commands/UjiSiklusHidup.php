@@ -36,9 +36,9 @@ class UjiSiklusHidup extends Command
         $prov   = new ProvisioningService($router);
         $terbit = new PenerbitAkun(AlokasiIp::dariConfig());
 
-        $paket = PaketBandwidth::where('nama', 'Standar')->first();
+        $paket = PaketBandwidth::where('aktif', true)->orderBy('id')->first();
         if (! $paket) {
-            $this->error('Paket bandwidth belum di-seed. Jalankan: php artisan db:seed');
+            $this->error('Belum ada paket bandwidth. Tambahkan lewat menu Pengaturan di web lebih dulu.');
 
             return self::FAILURE;
         }

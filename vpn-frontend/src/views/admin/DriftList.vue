@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { apiAdmin } from "../../lib/api";
 import { tungguOperasi, labelStatus } from "../../lib/operasi";
+import OperasiRouter from "./OperasiRouter.vue";
 
 const daftar = ref([]);
 const memuat = ref(false);
@@ -33,8 +34,19 @@ async function periksa() {
   galat.value = "";
   pesan.value = "";
   try {
-    const h = await apiAdmin("admin/drift/periksa", { method: "POST" });
-    pesan.value = `Diperiksa ${h.diperiksa} akun, ${h.temuan} temuan, ${h.ditutup} teratasi.`;
+    // Pemeriksaan berjalan lewat antrean; API membalas 202 lalu kita tunggu.
+    await apiAdmin("admin/drift/periksa", { method: "POST" });
+    pesan.value = "Pemeriksaan berjalan...";
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const st = await apiAdmin("admin/drift/status");
+      if (!st.berjalan) {
+        pesan.value = st.status === "gagal"
+          ? `Pemeriksaan gagal: ${st.pesan_error || "tanpa keterangan"}.`
+          : "Pemeriksaan selesai.";
+        break;
+      }
+    }
     await muat();
   } catch (e) {
     galat.value = e.message;
@@ -72,7 +84,9 @@ onMounted(muat);
       muncul ketika konfigurasi diubah manual lewat Winbox.
     </p>
 
-    <div class="toolbar">
+    <OperasiRouter />
+
+    <div class="toolbar" style="margin-top: 24px">
       <button class="btn btn-primary btn-sm" :disabled="memeriksa" @click="periksa">
         {{ memeriksa ? "Memeriksa..." : "Periksa sekarang" }}
       </button>

@@ -26,7 +26,9 @@ return [
 
     // Mengizinkan seluruh alamat LAN pada port dev server, supaya aplikasi
     // tetap dapat dibuka dari PC lain meski alamat DHCP mesin ini berubah.
-    'allowed_origins_patterns' => ['#^http://192\\.168\\.1\\.\\d{1,3}:5173$#'],
+    // Lab: izinkan alamat mana pun pada port dev server 5173, supaya aplikasi
+    // dapat dibuka dari PC atau HP mana pun di jaringan tanpa mengunci ke satu IP.
+    'allowed_origins_patterns' => ['#^https?://[^/]+:5173$#'],
 
     'allowed_headers' => ['*'],
 

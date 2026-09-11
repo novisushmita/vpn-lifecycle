@@ -821,7 +821,18 @@ Index: `(vps_id, checked_at)`. Pruning data > 90 hari.
 | aktif | boolean default true | |
 | timestamps | | |
 
-Seed sesuai keputusan #7: Dasar 2M/2M, Standar 5M/5M, Prioritas 10M/10M.
+Nilai acuan keputusan #7: Dasar 2M/2M, Standar 5M/5M, Prioritas 10M/10M.
+
+> **KEPUTUSAN USER 2026-09-10: paket bandwidth TIDAK di-seed dan TIDAK
+> dikonfigurasi di `chr-setup.rsc`.** Admin menambah tiap paket lewat menu
+> Pengaturan di web sejak awal; `PaketBandwidthController::store` memicu
+> `SelaraskanPaketJob` yang membuat PPP profile-nya di router (rate-limit,
+> local-address, remote-address=pool, dns-server). `DatabaseSeeder` hanya
+> memanggil `AdminSeeder`. `PaketBandwidthSeeder` tetap ada untuk mengisi tiga
+> contoh secara manual bila perlu:
+> `php artisan db:seed --class=Database\Seeders\PaketBandwidthSeeder`.
+> L2TP server di `chr-setup.rsc` memakai `default-profile=default-encryption`
+> (profile bawaan RouterOS), bukan `vpn-standar`.
 
 ### 11.5 `pengajuan`
 
@@ -1006,6 +1017,14 @@ sudah berhasil tampak gagal.
 > jalur manajemen (host-only) yang hanya dapat dijangkau server Laravel;
 > pemohon terhubung lewat alamat LAN/publik. Mengirim alamat manajemen membuat
 > koneksi klien selalu gagal.
+>
+> **KEPUTUSAN USER 2026-09-10: `alamat_server_vpn` dan `rentang_pool_vpn`
+> dapat diubah admin lewat menu Pengaturan (tabel `pengaturan`).** `.env`
+> (`ROUTEROS_VPN_SERVER`, `ROUTEROS_POOL_RANGE`) hanya jadi nilai bawaan.
+> `ProvisionAkunJob` membaca `Pengaturan::ambil('alamat_server_vpn')` untuk
+> email kredensial; `AlokasiIp::dariConfig()` membaca `rentang_pool_vpn`.
+> Alasan: alamat LAN router dari DHCP bisa berubah, dan mengunci di `.env`
+> berarti tiap perubahan menuntut edit berkas + restart.
 
 ### 11.10b Lapisan layanan
 

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Mail\KredensialVpn;
 use App\Models\AkunVpn;
+use App\Services\Pengaturan;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\Vpn\ProvisioningService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -56,7 +57,8 @@ class ProvisionAkunJob implements ShouldQueue
         Mail::to($akun->pengajuan->email)->queue(new KredensialVpn(
             $akun,
             $akun->password,
-            (string) (config('routeros.vpn_server')
+            (string) (Pengaturan::ambil('alamat_server_vpn')
+                ?: config('routeros.vpn_server')
                 ?: parse_url((string) config('routeros.base_url'), PHP_URL_HOST)),
             (string) config('routeros.ipsec_psk'),
         ));

@@ -25,6 +25,15 @@ $selang = static function (string $kunci, int $bawaan): int {
 |
 | withoutOverlapping mencegah dua eksekusi bertumpuk ketika router lambat
 | merespons — tanpa itu, polling 30 detik bisa saling menyusul.
+|
+| SETIAP withoutOverlapping() DI BAWAH WAJIB diberi parameter menit eksplisit.
+| Tanpa parameter, Laravel mengunci mutex-nya 1440 menit (24 jam). Kalau
+| proses schedule:work mati mendadak (mis. sesi dev ditutup paksa) sebelum
+| sempat melepas kunci, tugas itu diam-diam terlewat selama 24 jam berikutnya
+| tanpa galat di mana pun — gejalanya: "penjadwal jalan tapi datanya tidak
+| pernah diperbarui". Angka di bawah dipilih sedikit di atas durasi wajar
+| tiap tugas, supaya kalau ini terjadi lagi, ia sembuh sendiri dalam hitungan
+| menit, bukan sehari.
 */
 
 $detikSesi = $selang('detik_polling_sesi', 30);
@@ -43,28 +52,28 @@ match (true) {
 };
 
 $pollingSesi
-    ->withoutOverlapping()
+    ->withoutOverlapping(2)
     ->runInBackground();
 
 // Ketersediaan VPS dari sisi router.
 Schedule::command('vps:ping')
     ->cron('*/' . $selang('menit_ping_vps', 5) . ' * * * *')
-    ->withoutOverlapping();
+    ->withoutOverlapping(3);
 
 // Deteksi ketidaksesuaian basis data dengan router.
 Schedule::command('vpn:sinkron')
     ->cron('*/' . $selang('menit_periksa_drift', 10) . ' * * * *')
-    ->withoutOverlapping();
+    ->withoutOverlapping(8);
 
 // Peringatan H-3, kedaluwarsa, dan pembersihan H+30.
 Schedule::command('vpn:kedaluwarsa')
     ->dailyAt('01:00')
-    ->withoutOverlapping();
+    ->withoutOverlapping(30);
 
 // Menyegarkan status koneksi router untuk dashboard.
 Schedule::job(new App\Jobs\CekKoneksiRouterJob())
     ->everyMinute()
-    ->withoutOverlapping();
+    ->withoutOverlapping(2);
 
 // Menjaga tabel riwayat ping tidak tumbuh tanpa batas.
 Schedule::call(function () {

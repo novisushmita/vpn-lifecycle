@@ -3,6 +3,7 @@
 namespace App\Services\Vpn;
 
 use App\Models\AkunVpn;
+use App\Services\Pengaturan;
 use RuntimeException;
 
 /**
@@ -19,7 +20,8 @@ class AlokasiIp
 
     public static function dariConfig(): self
     {
-        return new self((string) config('routeros.pool_range'));
+        // Bisa diubah admin lewat menu Pengaturan; .env jadi nilai bawaan.
+        return new self((string) Pengaturan::ambil('rentang_pool_vpn', config('routeros.pool_range')));
     }
 
     public function berikutnya(): string

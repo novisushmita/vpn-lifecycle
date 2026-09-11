@@ -1124,6 +1124,43 @@ Sudah termasuk dalam `chr-setup.rsc` langkah 10 dan 11.
 
 ---
 
+## 13c. Pemasangan di mesin dev kedua (Ubuntu, 2026-09-10)
+
+Mesin: Ubuntu 26.04, PHP 8.3.33 (default `php`), MySQL 8.4 (bukan MariaDB),
+Node 22. Perbedaan dari lingkungan asli dan cara mengatasinya:
+
+| Hal | Di mesin ini |
+|---|---|
+| Port 8000 | dipakai container Docker lain, backend pindah ke **8090** |
+| `composer.lock` | terkunci ke paket yang butuh PHP 8.4.1, `php` di sini 8.3 -> jalankan `composer update` sekali untuk menurunkan Symfony ke 7.x (Laravel 13 tetap jalan di PHP 8.3) |
+| MySQL `root` | `auth_socket`, dibuat user `vpn_app` / db `vpn_lifecycle` lewat `sudo mysql` |
+| Mail | `MAIL_MAILER=log` (Mailpit belum dipasang), email masuk `storage/logs/laravel.log` |
+| RouterOS | belum ada CHR, `.env` `ROUTEROS_*` dikosongkan. Web + dashboard jalan penuh; provisioning ke router akan `gagal_provision` sampai CHR lab disiapkan |
+
+Alamat:
+
+| Halaman | Alamat |
+|---|---|
+| Publik | `http://192.168.100.14:5173/vps-tersedia` |
+| Admin | `http://192.168.100.14:5173/admin/login` (admin@vpn.local / admin12345) |
+| API | `http://192.168.100.14:8090/api` |
+
+`config/cors.php` `allowed_origins_patterns` dilonggarkan ke `#^https?://[^/]+:5173$#`
+supaya bisa dibuka dari PC/HP mana pun di LAN. `vpn-frontend/.env`
+`VITE_API_BASE_URL` menunjuk `192.168.100.14:8090` (baked saat build; ubah lalu
+restart `npm run dev` bila IP berubah). Empat proses dijalankan di background.
+
+### Perubahan kode sesi 2026-09-10
+
+| Area | Perubahan |
+|---|---|
+| Paket bandwidth | Tidak lagi di-seed dan tidak dikonfigurasi di `chr-setup.rsc`. Ditambahkan admin lewat menu Pengaturan; tiap paket membuat PPP profile-nya di router. L2TP `default-profile` jadi `default-encryption`. Lihat CLAUDE.md 11.4 |
+| Alamat server VPN + rentang pool | Pindah ke menu Pengaturan (`alamat_server_vpn`, `rentang_pool_vpn`). `.env` jadi nilai bawaan. Lihat CLAUDE.md 11.9b |
+| Login admin | Token Sanctum kedaluwarsa 12 jam (`SANCTUM_TOKEN_EXPIRATION`, menit). Galat jaringan/500 sesaat tidak lagi mem-logout admin (hanya 401). Guard verifikasi `/me` sekali per muat, bukan tiap navigasi. Login menghormati `?lanjut=`. |
+| Grafik sinkron + drift | `OperasiRouter.vue` (grafik durasi operasi sinkron) kini tampil di atas tabel drift di halaman Pemeriksaan Router. Tombol "Periksa sekarang" mem-poll status sampai job antrean selesai. |
+
+---
+
 ## 14d. Uji coba lengkap — langkah demi langkah
 
 Seluruhnya pada satu jaringan yang sama. Perkiraan waktu 15 menit.

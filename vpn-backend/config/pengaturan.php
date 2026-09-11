@@ -14,7 +14,13 @@ return [
         'alamat_server_vpn' => [
             'nilai'      => env('ROUTEROS_VPN_SERVER', ''),
             'label'      => 'Alamat server VPN',
-            'bantuan'    => 'Alamat yang dikirim ke pemohon lewat email dan dipakai klien untuk terhubung. Bukan alamat manajemen router.',
+            'bantuan'    => 'Alamat yang dikirim ke pemohon lewat email dan dipakai klien untuk terhubung. Bukan alamat manajemen router. Ubah di sini bila alamat LAN router berubah, tanpa menyentuh .env.',
+            'tipe'       => 'teks',
+        ],
+        'rentang_pool_vpn' => [
+            'nilai'      => env('ROUTEROS_POOL_RANGE', '10.10.20.10-10.10.20.250'),
+            'label'      => 'Rentang alamat klien VPN',
+            'bantuan'    => 'Rentang IP yang dialokasikan ke akun, format awal-akhir. HARUS sama persis dengan /ip pool di router.',
             'tipe'       => 'teks',
         ],
 

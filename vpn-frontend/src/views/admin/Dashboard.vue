@@ -6,14 +6,37 @@ import OperasiRouter from "./OperasiRouter.vue";
 
 const data = ref(null);
 const galat = ref("");
+const memeriksaKoneksi = ref(false);
 
-onMounted(async () => {
+async function muat() {
   try {
     data.value = await apiAdmin("admin/dashboard");
   } catch (e) {
     galat.value = e.message;
   }
-});
+}
+
+/** Cek koneksi router sekarang, di luar jadwal tiap menit. */
+async function cekKoneksiSekarang() {
+  memeriksaKoneksi.value = true;
+  galat.value = "";
+  const sebelum = data.value?.router?.diperiksa_pada;
+  try {
+    await apiAdmin("admin/dashboard/cek-koneksi", { method: "POST" });
+    // Job berjalan di queue; tunggu sampai cache-nya benar-benar berubah.
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      await muat();
+      if (data.value?.router?.diperiksa_pada !== sebelum) break;
+    }
+  } catch (e) {
+    galat.value = e.message;
+  } finally {
+    memeriksaKoneksi.value = false;
+  }
+}
+
+onMounted(muat);
 </script>
 
 <template>
@@ -27,15 +50,26 @@ onMounted(async () => {
       <div
         class="notice"
         :class="data.router.tersambung === true ? 'notice-success' : data.router.tersambung === false ? 'notice-danger' : 'notice-info'"
+        style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap"
       >
-        <strong>MikroTik:</strong>
-        <template v-if="data.router.tersambung">
-          tersambung, {{ data.router.identity }}, RouterOS {{ data.router.versi }},
-          uptime {{ data.router.uptime }}
-        </template>
-        <template v-else>
-          tidak tersambung. {{ data.router.pesan }}
-        </template>
+        <div style="flex: 1; min-width: 200px">
+          <strong>MikroTik:</strong>
+          <template v-if="data.router.tersambung">
+            tersambung, {{ data.router.identity }}, RouterOS {{ data.router.versi }},
+            uptime {{ data.router.uptime }}
+          </template>
+          <template v-else>
+            tidak tersambung. {{ data.router.pesan }}
+          </template>
+          <span v-if="data.router.diperiksa_pada" style="opacity: .7">
+            · diperiksa {{ waktuSingkat(data.router.diperiksa_pada) }}
+          </span>
+        </div>
+        <button
+          class="btn btn-secondary btn-sm"
+          :disabled="memeriksaKoneksi"
+          @click="cekKoneksiSekarang"
+        >{{ memeriksaKoneksi ? "Memeriksa..." : "Cek sekarang" }}</button>
       </div>
 
       <div class="stat-grid">

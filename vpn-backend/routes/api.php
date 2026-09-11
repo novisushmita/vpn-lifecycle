@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('me', [AuthController::class, 'me']);
     Route::get('dashboard', DashboardController::class);
+    Route::post('dashboard/cek-koneksi', [DashboardController::class, 'cekKoneksi']);
 
     // Pengajuan: ACC/REJECT hanya lewat detail, sesuai alur yang disepakati.
     Route::get('pengajuan', [AdminPengajuanController::class, 'index']);

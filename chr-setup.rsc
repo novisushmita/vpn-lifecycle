@@ -39,15 +39,13 @@ add name=api-laravel group=api-lifecycle password=<ROUTEROS_PASSWORD> comment="d
 add name=vpn-pool ranges=10.10.20.10-10.10.20.250
 
 :put "== 6/11 PPP profile per paket bandwidth =="
-# Nama HARUS sama dengan kolom ppp_profile di tabel paket_bandwidth.
-/ppp profile
-add name=vpn-dasar local-address=10.10.20.1 remote-address=vpn-pool rate-limit=2M/2M use-encryption=yes change-tcp-mss=yes
-add name=vpn-standar local-address=10.10.20.1 remote-address=vpn-pool rate-limit=5M/5M use-encryption=yes change-tcp-mss=yes
-add name=vpn-prioritas local-address=10.10.20.1 remote-address=vpn-pool rate-limit=10M/10M use-encryption=yes change-tcp-mss=yes
+# TIDAK dibuat di sini. Tiap paket bandwidth ditambahkan admin lewat menu
+# Pengaturan di web, dan SelaraskanPaketJob membuat PPP profile-nya di router
+# (rate-limit, local-address, remote-address=pool, dns-server) saat itu.
 
 :put "== 7/11 L2TP server + IPsec =="
 /interface l2tp-server server
-set enabled=yes use-ipsec=required ipsec-secret=<IPSEC_PSK> default-profile=vpn-standar authentication=mschap2
+set enabled=yes use-ipsec=required ipsec-secret=<IPSEC_PSK> default-profile=default-encryption authentication=mschap2
 
 :put "== 8/11 Firewall - izinkan L2TP masuk =="
 /ip firewall filter
@@ -72,10 +70,7 @@ add chain=srcnat src-address=10.10.20.0/24 out-interface=ether1 action=masquerad
 # Tanpa ini klien terhubung tetapi tidak bisa membuka nama domain apa pun.
 /ip dns
 set servers=8.8.8.8,1.1.1.1 allow-remote-requests=yes
-/ppp profile
-set [find name=vpn-dasar]     dns-server=10.10.20.1
-set [find name=vpn-standar]   dns-server=10.10.20.1
-set [find name=vpn-prioritas] dns-server=10.10.20.1
+# dns-server per PPP profile diisi SelaraskanPaketJob saat paket dibuat di web.
 
 :put ""
 :put "SELESAI. Verifikasi dari Laravel: php artisan router:cek"

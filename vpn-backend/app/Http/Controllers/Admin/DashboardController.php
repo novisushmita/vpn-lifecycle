@@ -48,4 +48,18 @@ class DashboardController extends Controller
                 ]),
         ]);
     }
+
+    /**
+     * Cek koneksi router on-demand, di luar jadwal tiap menit.
+     *
+     * Dispatch lewat queue seperti operasi router lainnya (6.2) — bukan
+     * dipanggil langsung di sini, supaya request tidak menunggu timeout
+     * router yang sedang mati.
+     */
+    public function cekKoneksi(): JsonResponse
+    {
+        CekKoneksiRouterJob::dispatch();
+
+        return response()->json(['message' => 'Pemeriksaan koneksi diantrekan.'], 202);
+    }
 }
