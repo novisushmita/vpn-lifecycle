@@ -1144,26 +1144,6 @@ sudah berhasil tampak gagal.
 > nge-reuse diam-diam. Endpoint: `GET/POST admin/pengaturan/ip-reklaim[/{id}]`
 > di `PengaturanController`.
 
-> **BUG DITEMUKAN & DIPERBAIKI 2026-09-11: email kredensial bisa membocorkan
-> alamat manajemen router ke pemohon.** `ProvisionAkunJob` dan
-> `AkunVpnController::kredensial()/kirimUlangKredensial()` masing-masing punya
-> fallback sendiri: `Pengaturan::ambil('alamat_server_vpn') ?: config('routeros.vpn_server')
-> ?: parse_url(config('routeros.base_url'))`. Kalau `alamat_server_vpn` kosong
-> (belum diisi admin), sistem diam-diam jatuh ke **host `ROUTEROS_BASE_URL`**
-> — alamat manajemen router, yang di banyak setup adalah alamat VPS/VM tempat
-> CHR di-hosting, bukan alamat yang bisa dipakai klien terhubung. Akibatnya
-> email kredensial mengirim alamat yang salah (klien tidak bisa konek) DAN
-> membocorkan alamat manajemen router ke pemohon.
->
-> Diperbaiki dengan satu sumber tunggal: `Pengaturan::alamatServerVpn()`
-> (`app/Services/Pengaturan.php`). Method ini SENGAJA tidak punya fallback ke
-> `base_url` — kalau `alamat_server_vpn` kosong, dia melempar `RuntimeException`
-> yang jelas ("Alamat server VPN belum diatur...") daripada diam-diam mengirim
-> alamat yang salah. Kedua jalur (`ProvisionAkunJob`, `AkunVpnController`)
-> dipangkas untuk memanggil method ini saja. Prinsipnya: gagal jelas lebih baik
-> daripada berhasil tapi salah — terutama kalau yang salah itu membocorkan
-> alamat manajemen router ke pihak luar.
-
 ### 11.10b Lapisan layanan
 
 | Kelas | Tanggung jawab |

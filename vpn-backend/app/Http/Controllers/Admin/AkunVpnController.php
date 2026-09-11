@@ -80,7 +80,7 @@ class AkunVpnController extends Controller
             'username' => $akun->username,
             'password' => $akun->password,
             'ip_vpn'   => $akun->ip_vpn,
-            'server'   => Pengaturan::alamatServerVpn(),
+            'server'   => $this->alamatServerVpn(),
         ]);
     }
 
@@ -102,7 +102,7 @@ class AkunVpnController extends Controller
         Mail::to($akun->pengajuan->email)->queue(new KredensialVpn(
             $akun,
             $akun->password,
-            Pengaturan::alamatServerVpn(),
+            $this->alamatServerVpn(),
             (string) config('routeros.ipsec_psk'),
         ));
 
@@ -113,6 +113,13 @@ class AkunVpnController extends Controller
         );
 
         return response()->json(['message' => "Email kredensial dikirim ulang ke {$akun->pengajuan->email}."]);
+    }
+
+    private function alamatServerVpn(): string
+    {
+        return (string) (Pengaturan::ambil('alamat_server_vpn')
+            ?: config('routeros.vpn_server')
+            ?: parse_url((string) config('routeros.base_url'), PHP_URL_HOST));
     }
 
     public function nonaktifkan(Request $request, AkunVpn $akun): JsonResponse

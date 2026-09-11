@@ -57,7 +57,9 @@ class ProvisionAkunJob implements ShouldQueue
         Mail::to($akun->pengajuan->email)->queue(new KredensialVpn(
             $akun,
             $akun->password,
-            Pengaturan::alamatServerVpn(),
+            (string) (Pengaturan::ambil('alamat_server_vpn')
+                ?: config('routeros.vpn_server')
+                ?: parse_url((string) config('routeros.base_url'), PHP_URL_HOST)),
             (string) config('routeros.ipsec_psk'),
         ));
     }
