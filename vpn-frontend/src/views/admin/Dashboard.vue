@@ -260,37 +260,33 @@ async function muatGrafikPing() {
 
     const nama = [...new Set(relevan.map((o) => o.vps))].sort();
 
-    // Batang mengambang menyambung dari satu pemeriksaan ke pemeriksaan
-    // berikutnya (bukan tanda tipis terpisah), jadi tiap VPS jadi satu garis
-    // status utuh yang gantian warna, bukan titik-titik ngambang sendiri.
-    const SELANG_FALLBACK_MS = 5 * 60 * 1000; // dipakai buat titik paling akhir tiap VPS
-    const batang = (status) => {
-      const hasil = [];
-      for (const v of nama) {
-        const baris = relevan.filter((o) => o.vps === v);
-        baris.forEach((o, i) => {
-          if (o.hasil.status !== status) return;
-          const mulai = new Date(o.selesai_pada).getTime();
-          const akhir = i + 1 < baris.length ? new Date(baris[i + 1].selesai_pada).getTime() : mulai + SELANG_FALLBACK_MS;
-          hasil.push({ x: [mulai, akhir], y: v });
-        });
-      }
-      return hasil;
-    };
+    // Chart.js 4.5.1: batang mengambang (data: {x:[min,max], y:kategori})
+    // tidak tergambar sama sekali saat indexAxis:"y" (batang horizontal) --
+    // terverifikasi lewat pengujian isolasi. Dipakai gantinya: satu garis
+    // per VPS pada sumbu-y kategori, warna tiap ruas ditentukan status ping
+    // di titik awal ruas (segment.borderColor), sama seperti pola yang
+    // sudah terbukti jalan di muatGrafikSinkron().
+    const warna = (status) => (status === "down" ? "#d93025" : "#0f9d58");
 
     await nextTick();
     chartPing?.destroy();
 
     chartPing = new Chart(kanvasPing.value, {
-      type: "bar",
+      type: "line",
       data: {
-        datasets: [
-          { label: "Up", data: batang("up"), backgroundColor: "#0f9d58" },
-          { label: "Down", data: batang("down"), backgroundColor: "#d93025" },
-        ],
+        datasets: nama.map((v) => ({
+          label: v,
+          data: relevan
+            .filter((o) => o.vps === v)
+            .map((o) => ({ x: new Date(o.selesai_pada).getTime(), y: v, status: o.hasil.status })),
+          borderWidth: 14,
+          pointRadius: 0,
+          tension: 0,
+          spanGaps: false,
+          segment: { borderColor: (ctx) => warna(ctx.p0.raw.status) },
+        })),
       },
       options: {
-        indexAxis: "y", // batang horizontal
         responsive: true,
         maintainAspectRatio: false,
         scales: {
@@ -301,8 +297,13 @@ async function muatGrafikPing() {
           },
         },
         plugins: {
-          legend: { position: "bottom" },
-          tooltip: { callbacks: { title: (items) => jam(new Date(items[0].raw.x[0])) } },
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => jam(new Date(items[0].raw.x)),
+              label: (item) => `${item.raw.y}: ${item.raw.status === "down" ? "Down" : "Up"}`,
+            },
+          },
         },
       },
     });
@@ -490,7 +491,8 @@ onBeforeUnmount(() => {
 
       <h2 class="section-title" style="font-size: 16px; margin-top: 30px">Status VPS</h2>
       <p class="section-subtitle" style="margin-top: 3px">
-        Tiap titik satu pemeriksaan ping terjadwal, 24 jam terakhir. Hijau = up, merah = down.
+        Garis menyambung dari satu pemeriksaan ping ke pemeriksaan berikutnya,
+        24 jam terakhir. Hijau = up, merah = down.
       </p>
       <p v-if="pingKosong" style="color: var(--color-text-faint); font-size: 13px">
         Belum ada pemeriksaan ping otomatis.
