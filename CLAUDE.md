@@ -1116,13 +1116,22 @@ sudah berhasil tampak gagal.
 > pemohon terhubung lewat alamat LAN/publik. Mengirim alamat manajemen membuat
 > koneksi klien selalu gagal.
 >
-> **KEPUTUSAN USER 2026-09-10: `alamat_server_vpn` dan `rentang_pool_vpn`
-> dapat diubah admin lewat menu Pengaturan (tabel `pengaturan`).** `.env`
-> (`ROUTEROS_VPN_SERVER`, `ROUTEROS_POOL_RANGE`) hanya jadi nilai bawaan.
-> `ProvisionAkunJob` membaca `Pengaturan::ambil('alamat_server_vpn')` untuk
-> email kredensial; `AlokasiIp::dariConfig()` membaca `rentang_pool_vpn`.
-> Alasan: alamat LAN router dari DHCP bisa berubah, dan mengunci di `.env`
-> berarti tiap perubahan menuntut edit berkas + restart.
+> **KEPUTUSAN USER 2026-09-10: `alamat_server_vpn` dapat diubah admin lewat
+> menu Pengaturan (tabel `pengaturan`).** `.env` (`ROUTEROS_VPN_SERVER`)
+> hanya jadi nilai bawaan. `ProvisionAkunJob` membaca
+> `Pengaturan::ambil('alamat_server_vpn')` untuk email kredensial. Alasan:
+> alamat LAN router dari DHCP bisa berubah, dan mengunci di `.env` berarti
+> tiap perubahan menuntut edit berkas + restart.
+>
+> **KEPUTUSAN USER 2026-09-11: rentang alamat klien VPN dicabut dari menu
+> Pengaturan.** Sempat dibuat web-editable bersamaan dengan `alamat_server_vpn`
+> di atas, tapi tidak seperti alamat server, rentang pool ini **harus persis
+> sama** dengan `/ip pool` yang sudah dikonfigurasi di router (batasan #3
+> di bagian 6.4 — konfigurasi dasar router bukan tanggung jawab sistem).
+> Membuatnya web-editable membuka celah admin mengetik rentang yang tidak
+> cocok dengan pool asli tanpa sistem tahu. Dikembalikan jadi murni `.env`
+> (`ROUTEROS_POOL_RANGE`), dibaca `AlokasiIp::dariConfig()`. Entri
+> `rentang_pool_vpn` dihapus dari `config/pengaturan.php`.
 
 > **KEPUTUSAN USER 2026-09-11: reklaim IP manual, bukan otomatis.** `AlokasiIp`
 > tetap tidak pernah daur ulang IP sendiri (alasan keamanan tidak berubah, lihat

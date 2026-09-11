@@ -1348,7 +1348,8 @@ restart `npm run dev` bila IP berubah). Empat proses dijalankan di background.
 | Area | Perubahan |
 |---|---|
 | Paket bandwidth | Tidak lagi di-seed dan tidak dikonfigurasi di `chr-setup.rsc`. Ditambahkan admin lewat menu Pengaturan; tiap paket membuat PPP profile-nya di router. L2TP `default-profile` jadi `default-encryption`. Lihat CLAUDE.md 11.4 |
-| Alamat server VPN + rentang pool | Pindah ke menu Pengaturan (`alamat_server_vpn`, `rentang_pool_vpn`). `.env` jadi nilai bawaan. Lihat CLAUDE.md 11.9b |
+| Alamat server VPN | Pindah ke menu Pengaturan (`alamat_server_vpn`). `.env` jadi nilai bawaan. Lihat CLAUDE.md 11.9b |
+| Rentang pool VPN | Sempat web-editable (`rentang_pool_vpn`), dicabut 2026-09-11 karena harus persis sama dengan `/ip pool` di router. Murni `.env` (`ROUTEROS_POOL_RANGE`) lagi. |
 | Login admin | Token Sanctum kedaluwarsa 12 jam (`SANCTUM_TOKEN_EXPIRATION`, menit). Galat jaringan/500 sesaat tidak lagi mem-logout admin (hanya 401). Guard verifikasi `/me` sekali per muat, bukan tiap navigasi. Login menghormati `?lanjut=`. |
 | Grafik sinkron + drift | `OperasiRouter.vue` (grafik durasi operasi sinkron) kini tampil di atas tabel drift di halaman Pemeriksaan Router. Tombol "Periksa sekarang" mem-poll status sampai job antrean selesai. |
 
