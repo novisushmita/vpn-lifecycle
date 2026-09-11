@@ -613,6 +613,29 @@ belakang MikroTik. Konsekuensi yang membuat desain ini valid:
 IP pool, interface, IPsec proposal, sertifikat — di luar scope sistem.
 Sistem hanya mengelola siklus hidup akun.
 
+### 6.5 Chart.js 4.5.1: batang mengambang tidak tergambar pada sumbu horizontal
+
+Ditemukan 2026-09-11 saat grafik "Status VPS" di dashboard tampak kosong.
+Batang mengambang (`data: [{x:[min,max], y:kategori}]`) dengan
+`indexAxis:"y"` (batang horizontal) **tidak menggambar apa pun**, tanpa
+galat di konsol. Terverifikasi lewat pengujian isolasi memakai Chart.js
+4.5.1 murni dari CDN, beberapa variasi (sumbu kategori vs linear, label di
+skala vs di data, dengan/tanpa `parsing:false`) — semua varian gagal sama.
+Batang mengambang di orientasi vertikal (default, `indexAxis` tidak
+diset) dan batang biasa (non-mengambang) horizontal, keduanya normal.
+
+**Solusi yang dipakai:** ganti pendekatan batang dengan `type:"line"` +
+sumbu-y kategori + `segment.borderColor` per ruas (satu dataset per baris
+kategori, `borderWidth` tebal supaya terbaca sebagai jalur status, bukan
+grafik garis biasa). Pola yang sama sudah dipakai grafik "Status Router".
+Diterapkan di `muatGrafikPing()` pada
+`vpn-frontend/src/views/admin/Dashboard.vue`.
+
+> Kalau suatu saat butuh batang mengambang horizontal lagi (mis. Gantt
+> chart lain), jangan pakai `indexAxis:"y"` pada Chart.js 4.5.1 — pakai
+> pola garis di atas, atau cek dulu apakah versi Chart.js yang lebih baru
+> sudah memperbaikinya.
+
 ---
 
 ## 7. Batasan Masalah (untuk Bab 1 skripsi)
