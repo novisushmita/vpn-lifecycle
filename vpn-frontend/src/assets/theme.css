@@ -191,6 +191,9 @@ a:hover { text-decoration: underline; }
   box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
+/* Ikon oranye hanya menandai menu yang sedang dibuka. Memberi warna aksen
+   pada menu tertentu secara tetap membuat penanda "sedang di sini" kehilangan
+   artinya, karena ada dua hal berbeda memakai isyarat yang sama. */
 .sidebar__item-icon { flex: none; color: var(--color-text-faint); }
 .sidebar__item.is-active .sidebar__item-icon { color: var(--color-primary); }
 
