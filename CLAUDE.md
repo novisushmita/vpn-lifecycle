@@ -1001,13 +1001,24 @@ CRUD VPS, `hapus_vps_berantai`, `edit_akun`, `disable_akun`, `enable_akun`, `hap
 
 | Mailable | Dipicu oleh |
 |---|---|
-| `PengajuanDiterima` | `POST /api/pengajuan` |
-| `PengajuanDitolak` | admin menolak pengajuan |
+| `PengajuanDiterima` | `POST /api/pengajuan` **dan** `POST /api/perpanjangan` (jenis dibedakan lewat `$pengajuan->jenis` di template) |
+| `PengajuanDitolak` | admin menolak pengajuan (berlaku untuk kedua jenis) |
 | `KredensialVpn` | **`ProvisionAkunJob` setelah provisioning SUKSES** |
+| `PerpanjanganDisetujui` | **`OperasiAkunJob` (jenis `extend`) setelah `perpanjang()` SUKSES di router** |
 | `PeringatanKedaluwarsa` | `vpn:kedaluwarsa` pada H-3 |
 
 Seluruhnya `ShouldQueue` — kegagalan SMTP tidak boleh membuat operasi yang
 sudah berhasil tampak gagal.
+
+> **KEPUTUSAN USER 2026-09-11: alur perpanjangan sebelumnya sama sekali tidak
+> mengirim email** — submit tidak dikabari (`PerpanjanganController::store()`
+> tidak memanggil `Mail::to()` sama sekali), dan ACC admin juga diam
+> (`OperasiAkunJob` jenis `extend` tidak punya efek email apa pun). Pemohon
+> hanya tahu hasilnya kalau membuka halaman cek status sendiri. Ditutup dengan
+> mengirim `PengajuanDiterima` di submit (reuse, bukan mailable baru) dan
+> mailable baru `PerpanjanganDisetujui` setelah ACC berhasil di router — pola
+> yang sama dengan `KredensialVpn`: jangan kabari pemohon sebelum perubahan
+> benar-benar berlaku, karena operasi router bisa gagal.
 
 > **`KredensialVpn` dikirim setelah objek benar-benar terpasang di router**,
 > bukan saat pengajuan disetujui. Mengirim lebih awal berarti pemohon menerima

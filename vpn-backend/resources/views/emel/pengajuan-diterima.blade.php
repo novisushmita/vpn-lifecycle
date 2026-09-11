@@ -10,8 +10,12 @@ administrator.
 **Nomor pengajuan: {{ $pengajuan->nomor }}**
 </x-mail::panel>
 
-Simpan nomor tersebut. Nomor itu dipakai untuk memeriksa status pengajuan dan,
-nantinya, untuk mengajukan perpanjangan.
+Simpan nomor tersebut. Nomor itu dipakai untuk memeriksa status pengajuan
+@if ($pengajuan->jenis === 'baru')
+dan, nantinya, untuk mengajukan perpanjangan.
+@else
+ini.
+@endif
 
 **Ringkasan**
 

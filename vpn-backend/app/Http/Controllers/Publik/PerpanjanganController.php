@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Publik;
 
 use App\Enums\StatusAkun;
 use App\Http\Controllers\Controller;
+use App\Mail\PengajuanDiterima;
 use App\Models\Pengajuan;
 use App\Services\Vpn\NomorPengajuan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Permintaan perpanjangan masa akses.
@@ -74,6 +76,8 @@ class PerpanjanganController extends Controller
         $baru->nomor  = $nomor->berikutnya();
         $baru->status = 'diajukan';
         $baru->save();
+
+        Mail::to($baru->email)->queue(new PengajuanDiterima($baru));
 
         return response()->json(['nomor' => $baru->nomor], 201);
     }

@@ -1090,14 +1090,45 @@ MAIL_FROM_NAME="Layanan VPN"
 > tanpa kutip membuat seluruh berkas gagal diurai, dan galatnya
 > (`Failed to parse dotenv file`) tidak menyebut baris mana penyebabnya.
 
-Empat email yang dikirim sistem:
+Lima email yang dikirim sistem:
 
 | Email | Dipicu |
 |---|---|
-| Pengajuan diterima | pemohon mengirim form |
+| Pengajuan diterima | pemohon mengirim form pengajuan baru ATAU perpanjangan |
 | Akun VPN aktif + kredensial | **setelah** provisioning ke router berhasil |
 | Pengajuan tidak disetujui | admin menolak, memuat alasan |
+| Perpanjangan disetujui | **setelah** perpanjangan berhasil diterapkan ke router |
 | Peringatan kedaluwarsa | `vpn:kedaluwarsa` pada H-3 |
+
+### 14b2. Kirim email beneran (bukan Mailpit) — mis. demo di device lain
+
+Ganti isi `.env` dengan SMTP sungguhan. Template Gmail sudah ada di
+`.env.example`, tinggal isi 3 baris:
+
+```
+MAIL_USERNAME=email-pengirim@gmail.com
+MAIL_PASSWORD=xxxxxxxxxxxxxxxx        # App Password 16 karakter, BUKAN password Gmail biasa
+MAIL_FROM_ADDRESS="email-pengirim@gmail.com"
+```
+
+`MAIL_PASSWORD` **wajib** App Password, bukan password akun Gmail biasa —
+Gmail menolak SMTP dengan password biasa. Cara buat:
+
+1. Aktifkan verifikasi 2 langkah di akun Google pengirim (Setelan → Keamanan)
+2. Buka https://myaccount.google.com/apppasswords, buat App Password baru
+   (nama bebas, mis. "vpn-lifecycle"), copy 16 karakternya
+3. Tempel ke `MAIL_PASSWORD` (boleh dengan atau tanpa spasi)
+
+`MAIL_FROM_ADDRESS` **wajib sama** dengan `MAIL_USERNAME` — Gmail
+menolak/menandai spam kalau alamat pengirim di header `From` berbeda dari
+akun yang login SMTP.
+
+Setelah ganti `.env`, restart `php artisan serve` dan `php artisan
+queue:work` (config cuma kebaca ulang saat proses baru dibuka):
+
+```bash
+php artisan config:clear
+```
 
 ---
 
