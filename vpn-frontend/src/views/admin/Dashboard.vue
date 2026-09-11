@@ -452,10 +452,6 @@ onBeforeUnmount(() => {
       <div class="grafik-grid" style="margin-top: 30px">
         <div>
           <h3 style="font-size: 14px; font-weight: 600; margin: 0">Status Router</h3>
-          <p class="section-subtitle" style="margin-top: 3px">
-            Durasi tiap pemeriksaan sinkronisasi terjadwal, 24 jam terakhir.
-            Merah = di atas rata-rata, hijau = di bawah atau sama dengan rata-rata.
-          </p>
           <p v-if="sinkronKosong" style="color: var(--color-text-faint); font-size: 13px">
             Belum ada pemeriksaan sinkronisasi 24 jam terakhir.
           </p>
@@ -474,13 +470,6 @@ onBeforeUnmount(() => {
                 style="margin-left: 6px"
               >{{ data.drift.terbuka }} terbuka</span>
             </h3>
-            <p class="section-subtitle" style="margin-top: 3px">
-              Jumlah temuan per pemeriksaan terjadwal (tiap 10 menit), 24 jam terakhir.
-              Merah = ada drift saat itu, hijau = DB dan router sinkron.
-              <span v-if="data.drift.terakhir_dicek" style="color: var(--color-text-faint)">
-                Terakhir dicek {{ waktuSingkat(data.drift.terakhir_dicek) }}.
-              </span>
-            </p>
           </RouterLink>
 
           <p v-if="driftKosong" style="color: var(--color-text-faint); font-size: 13px">
@@ -493,10 +482,6 @@ onBeforeUnmount(() => {
       </div>
 
       <h2 class="section-title" style="font-size: 16px; margin-top: 30px">Status VPS</h2>
-      <p class="section-subtitle" style="margin-top: 3px">
-        Garis menyambung dari satu pemeriksaan ping ke pemeriksaan berikutnya,
-        24 jam terakhir. Hijau = up, merah = down.
-      </p>
       <p v-if="pingKosong" style="color: var(--color-text-faint); font-size: 13px">
         Belum ada pemeriksaan ping otomatis.
       </p>
