@@ -913,6 +913,168 @@ Winbox.
 
 ---
 
+## 12c. Mengganti router
+
+Skenario: router rusak, diganti, atau dikembalikan ke keadaan kosong. Basis
+data masih memegang seluruh akun, sementara router baru tidak punya apa-apa.
+
+Perintah `vpn:pasang-ulang` membangun kembali objek seluruh akun di router dari
+basis data.
+
+### 12c.1 Dua alamat yang berbeda peran
+
+
+Sebelum menjalankan apa pun, pahami bahwa ada **dua** alamat router dalam
+sistem ini, dan keduanya melayani hal yang berbeda.
+
+| Alamat | Tempat | Untuk apa | Wajib diubah sebelum pasang-ulang? |
+|---|---|---|---|
+| `ROUTEROS_BASE_URL` | `.env` | Jalur Laravel menyentuh router | **Ya, mutlak** |
+| `alamat_server_vpn` | menu Pengaturan | Alamat pada email kredensial | Tidak, tetapi tetap harus |
+
+`vpn:pasang-ulang` hanya memakai yang pertama. Yang kedua tidak disentuh
+perintah ini sama sekali; ia hanya dikirim ke pemohon lewat email.
+
+> **Bahaya bila `ROUTEROS_BASE_URL` belum diubah.**
+>
+> Bila router lama sudah mati, perintah berhenti di gerbang pertama dengan
+> pesan jelas. Aman.
+>
+> Bila router lama **masih menyala**, perintah akan membangun ulang seluruh
+> akun **di router yang salah**, dengan sukses, tanpa peringatan apa pun. Basis
+> data lalu menyimpan `.id` milik router lama sementara router baru tetap
+> kosong, dan kekeliruannya baru ketahuan ketika klien tidak dapat terhubung.
+>
+> Skenario ini bukan mengada-ada: pada penggantian router karena peningkatan
+> perangkat, router lama biasanya masih hidup selama migrasi.
+
+### 12c.2 Nilai yang pindah dari .env ke basis data
+
+
+Menu Pengaturan menyimpan nilainya ke tabel `pengaturan`, dan nilai di sana
+**menimpa** nilai bawaan dari `.env`.
+
+Selama sebuah pengaturan belum pernah disimpan lewat menu, mengubah `.env`
+sudah cukup. Namun begitu tombol Simpan ditekan sekali saja untuk pengaturan
+itu, nilainya pindah ke basis data dan **`.env` tidak lagi berpengaruh** untuk
+kunci tersebut.
+
+Periksa apa saja yang sudah tersimpan:
+
+```bash
+php artisan tinker --execute='DB::table("pengaturan")->get(["kunci","nilai"])->each(fn($x) => print("$x->kunci = $x->nilai\n"));'
+```
+
+Menghapus barisnya mengembalikan pengaturan itu ke nilai bawaan `.env`.
+
+> `ROUTEROS_BASE_URL` sengaja **tidak** dijadikan pengaturan di menu. Ia adalah
+> jalur yang dipakai aplikasi untuk menyentuh router; menaruhnya di web berarti
+> memungkinkan sistem memutus jalurnya sendiri lewat satu kesalahan ketik,
+> tanpa cara memperbaikinya dari web.
+
+### 12c.3 Urutan
+
+
+```bash
+# 1. Fondasi router baru. TIDAK dibuat sistem (batasan #3).
+scp chr-setup.rsc admin@<IP_BARU>:
+ssh admin@<IP_BARU> "/import file=chr-setup.rsc"
+
+# 2. Arahkan aplikasi ke router baru
+#    sunting .env -> ROUTEROS_BASE_URL
+php artisan config:clear
+
+# 3. PERIKSA menunjuk router yang benar
+php artisan router:cek
+
+# 4. Lihat dulu apa yang akan dikerjakan
+php artisan vpn:pasang-ulang --dry-run
+
+# 5. Kerjakan
+php artisan vpn:pasang-ulang
+
+# 6. Perbarui alamat pada email kredensial
+#    menu Pengaturan -> Alamat server VPN
+
+# 7. Buktikan hasilnya
+php artisan vpn:sinkron
+```
+
+**Langkah 3 adalah pemeriksaan keamanannya.** `router:cek` menampilkan identity
+dan uptime router yang sedang dituju. Uptime berhari-hari berarti kamu masih
+menunjuk router lama; jangan lanjut ke langkah 4.
+
+Langkah 7 harus menghasilkan `temuan=0`. Itu bukti basis data dan router sudah
+identik kembali.
+
+Langkah 6 boleh dikerjakan sesudahnya karena tidak memengaruhi pembangunan
+ulang. Tetapi jangan dilewat: akun yang sudah ada tetap berfungsi, sedangkan
+**pemohon baru akan menerima email berisi alamat server yang sudah tidak ada.**
+
+### 12c.4 Apa yang dikerjakan perintahnya
+
+
+| Tahap | Isi |
+|---|---|
+| 1 | Memastikan router dapat dihubungi; berhenti bila tidak |
+| 2 | Memeriksa fondasi: IP pool, PPP profile tiap paket aktif, aturan tolak default |
+| 3 | Menampilkan daftar akun beserta cara penanganannya |
+| 4 | Meminta konfirmasi, kecuali diberi `--paksa` |
+| 5 | Melepas ikatan `.id` lama, lalu membangun objek tiap akun |
+| 6 | Menutup temuan drift lama yang sudah tidak berlaku |
+
+### 12c.5 Kenapa ikatan `.id` harus dilepas
+
+
+Kolom `router_secret_id`, `router_addresslist_id`, dan `router_firewall_id`
+menyimpan nomor urut internal RouterOS seperti `*8`. Nomor itu hanya bermakna
+pada router yang menerbitkannya.
+
+Di router baru, `*8` tetap ada tetapi milik objek lain, kemungkinan besar salah
+satu aturan bawaan `chr-setup.rsc`. Bila tidak dilepas:
+
+```
+perbaiki() memeriksa objekAda('ip/firewall/filter', '*8')  -> ADA
+  -> sistem menyimpulkan aturan akun sudah terpasang
+  -> aturan izin akun TIDAK PERNAH dibuat
+  -> drift menandainya nilai_beda karena src-address tidak cocok
+  -> push memanggil perbaiki() lagi -> kembali ke baris pertama
+```
+
+Temuan itu tidak akan pernah bisa diselesaikan. Perintah ini mengosongkan
+ketiga kolom sebelum membangun, sehingga objeknya dibuat dari nol dan nomor
+`.id` yang baru disimpan.
+
+### 12c.6 Kenapa fondasi diperiksa lebih dulu
+
+
+Yang paling penting dari ketiga pemeriksaan adalah **aturan firewall tolak
+default**. Aturan itu adalah tempat aturan izin tiap akun disisipkan.
+
+Tanpa aturan tolak, akun tetap terpasang dan tampak normal, tetapi isolasinya
+**tidak berlaku sama sekali**: setiap akun dapat menjangkau setiap VPS, dan
+tidak ada gejala apa pun yang terlihat di antarmuka. Berhenti dengan pesan
+jelas lebih baik daripada menghasilkan sistem yang tampak benar tetapi
+diam-diam terbuka.
+
+### 12c.7 Peragaan untuk laporan
+
+
+Cara paling meyakinkan menunjukkan pola *desired state reconciliation*:
+
+1. Catat kondisi awal: `php artisan vpn:sinkron` menghasilkan `temuan=0`
+2. Lewat Winbox, hapus seluruh `/ppp secret`, entri address-list, dan aturan
+   firewall bertanda `vpnlc:akun:` secara manual
+3. `php artisan vpn:sinkron` sekarang menghasilkan tiga temuan per akun
+4. `php artisan vpn:pasang-ulang`
+5. `php artisan vpn:sinkron` kembali `temuan=0`
+
+Router dikosongkan, satu perintah, seluruh akun kembali persis seperti semula
+beserta isolasi per-VPS-nya. Basis data memegang kebenaran; router disamakan
+dengannya.
+
+---
+
 ## 13. Menjalankan aplikasi
 
 ### Catatan perbaikan proses (2026-09-05)
@@ -1454,8 +1616,7 @@ Diperiksa ulang 2026-09-06 terhadap kondisi kode, bukan ingatan.
 
 ### Belum — berkaitan dengan pengujian dan penulisan
 
-- [ ] Uji isolasi antar-VPS didokumentasikan sebagai bukti (prosedur di bagian
-      14.2, dapat dijalankan dari CHR klien maupun PC)
+- [ ] Uji isolasi antar-VPS didokumentasikan sebagai bukti (prosedur di bagian 14.2, dapat dijalankan dari CHR klien maupun PC)
 - [ ] Pengukuran Bab 4: bandingkan durasi operasi manual lewat Winbox dengan
       angka `durasi_ms` yang sudah terkumpul otomatis di `operasi_router`
       (lihat CLAUDE.md bagian 8)

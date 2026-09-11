@@ -138,12 +138,21 @@ class ProvisioningService
             $dipasangUlang = $this->pastikanObjekLengkap($akun);
 
             if (! $akun->router_secret_id || ! $this->objekAda(self::PATH_SECRET, $akun->router_secret_id)) {
+                // disabled WAJIB disertakan di sini juga: RouterOS membuat
+                // secret baru dengan disabled=no secara default, apa pun
+                // status akun sebenarnya. Cabang ini dilalui saat objek lama
+                // sudah tidak ada -- termasuk saat vpn:pasang-ulang membangun
+                // ulang dari nol -- sehingga akun yang seharusnya nonaktif
+                // bisa lolos ke router dalam keadaan aktif tanpa terdeteksi
+                // (secret-nya ADA dan pemeriksaan drift hanya membandingkan
+                // nilai, yang kebetulan baru pertama kali ditulis di sini).
                 $akun->router_secret_id = $this->idDari($this->router->buat(self::PATH_SECRET, [
                     'name'           => $akun->username,
                     'password'       => $akun->password,
                     'service'        => 'l2tp',
                     'profile'        => $akun->paketBandwidth->ppp_profile,
                     'remote-address' => $akun->ip_vpn,
+                    'disabled'       => $akun->status->seharusnyaEnabledDiRouter() ? 'false' : 'true',
                     'comment'        => $this->tanda($akun),
                 ]));
                 $dipasangUlang[] = 'ppp-secret';

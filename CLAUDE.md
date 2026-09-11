@@ -727,12 +727,76 @@ OPSIONAL| Log metadata trafik / NetFlow (Tingkat 2)
 | `vps:ping` | Ketersediaan VPS dari sisi router | tiap 5 menit |
 | `vpn:sinkron [--daftar]` | Deteksi drift DB vs router | tiap 10 menit |
 | `vpn:kedaluwarsa [--dry-run]` | H-3, kedaluwarsa, pembersihan H+30 | harian 01:00 |
+| `vpn:pasang-ulang [--dry-run] [--paksa]` | Bangun ulang objek seluruh akun di router dari basis data | manual |
 
 Penjadwalan didefinisikan di `routes/console.php`. Semuanya memakai
 `withoutOverlapping()` supaya eksekusi tidak bertumpuk ketika router lambat
 merespons — tanpa itu, polling 30 detik bisa saling menyusul.
 
 Jalankan penjadwal dengan satu proses: `php artisan schedule:work`.
+
+### 10a-1. Mengganti router
+
+Ketika router diganti atau dikembalikan ke keadaan kosong, basis data tetap
+memegang seluruh akun sementara router tidak punya apa-apa. Ini persis kondisi
+drift `hilang_di_router` pada skala penuh, dan `vpn:pasang-ulang` yang
+menyelesaikannya.
+
+**Urutannya:**
+
+1. Siapkan fondasi router dengan `chr-setup.rsc`. Sertifikat, service, pengguna
+   API, IP pool, PPP profile, dan aturan firewall dasar **tidak** dibuat oleh
+   sistem (batasan #3).
+2. Arahkan `ROUTEROS_BASE_URL` di `.env` ke alamat router baru, dan sesuaikan
+   `alamat_server_vpn` di menu Pengaturan.
+3. `php artisan router:cek` sampai seluruh prasyarat OK.
+4. `php artisan vpn:pasang-ulang --dry-run` untuk melihat daftar akun yang akan
+   dibangun ulang.
+5. `php artisan vpn:pasang-ulang` untuk mengerjakannya.
+6. `php artisan vpn:sinkron` untuk membuktikan hasilnya nol temuan.
+
+**Kenapa ikatan `.id` harus dilepas lebih dulu.** Kolom `router_secret_id`,
+`router_addresslist_id`, dan `router_firewall_id` menyimpan nomor urut internal
+RouterOS seperti `*8`. Nomor itu **hanya bermakna pada router yang
+menerbitkannya**. Di router baru, `*8` tetap ada tetapi milik objek lain,
+kemungkinan besar salah satu aturan bawaan `chr-setup.rsc`.
+
+Bila tidak dilepas, rantai kegagalannya begini:
+
+```
+perbaiki() memeriksa objekAda('ip/firewall/filter', '*8')  -> ADA
+  -> sistem menyimpulkan aturan akun sudah terpasang
+  -> aturan izin akun TIDAK PERNAH dibuat
+  -> drift menandainya nilai_beda karena src-address tidak cocok
+  -> push memanggil perbaiki() lagi -> kembali ke baris pertama
+```
+
+Temuan itu tidak akan pernah bisa diselesaikan. Karena itu `vpn:pasang-ulang`
+menghapus objek lama (bila ada) lalu mengosongkan ketiga kolom sebelum membangun
+ulang -- urutan ini diverifikasi 2026-09-07 terhadap CHR yang sekadar dinyalakan
+ulang (bukan diganti): objek lama masih ada dengan nama sama, dan tanpa dihapus
+lebih dulu, pembuatan objek baru akan ditolak RouterOS lalu meninggalkan .id
+kosong di basis data padahal objek lama tetap hidup tak terlacak.
+
+Pengujian yang sama juga menemukan `perbaiki()` tidak menyertakan `disabled`
+saat membuat ulang secret dari nol, sehingga akun berstatus dinonaktifkan bisa
+kembali aktif di router setelah pasang-ulang. Sudah diperbaiki; verifikasi wajib
+`php artisan vpn:sinkron` menghasilkan `temuan=0` setelah pasang-ulang.
+
+**Yang diperiksa sebelum mengerjakan apa pun:** IP pool, PPP profile untuk
+setiap paket aktif, dan **aturan firewall tolak default**. Yang terakhir paling
+penting: ia adalah tempat aturan izin tiap akun disisipkan. Tanpa aturan itu,
+akun tetap terpasang tetapi isolasinya tidak berlaku sama sekali dan tidak ada
+gejala yang terlihat. Berhenti lebih baik daripada menghasilkan sistem yang
+tampak benar tetapi diam-diam terbuka.
+
+**Akun berstatus `gagal_provision` ditangani dengan `provision()`**, bukan
+`perbaiki()`, karena statusnya perlu ikut berpindah menjadi aktif. `perbaiki()`
+sengaja tidak menyentuh status (lihat 11.10b).
+
+> Kemampuan membangun ulang router dari basis data adalah peragaan terkuat dari
+> pola *desired state reconciliation* yang diklaim penelitian ini: basis data
+> memegang kebenaran, router disamakan dengannya.
 
 ## 10b. Catatan Pemasangan
 
