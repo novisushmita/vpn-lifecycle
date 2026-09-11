@@ -12,9 +12,7 @@ function ajukanVpn(vps) {
 <template>
   <section class="card">
     <h1 class="section-title">VPS Tersedia</h1>
-    <p class="section-subtitle">
-      Daftar VPS yang dapat diakses melalui VPN. Pilih VPS lalu klik tombol Ajukan VPN untuk mengirim permintaan akses.
-    </p>
+    <p class="section-subtitle"></p>
 
     <div class="table-scroll" style="margin-top: 22px">
       <table class="table">

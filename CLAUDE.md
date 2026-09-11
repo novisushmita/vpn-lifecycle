@@ -1037,14 +1037,25 @@ sudah berhasil tampak gagal.
 > Alasan: alamat LAN router dari DHCP bisa berubah, dan mengunci di `.env`
 > berarti tiap perubahan menuntut edit berkas + restart.
 
+> **KEPUTUSAN USER 2026-09-11: reklaim IP manual, bukan otomatis.** `AlokasiIp`
+> tetap tidak pernah daur ulang IP sendiri (alasan keamanan tidak berubah, lihat
+> komentar di kelas itu). Yang ditambahkan: panel "Reklaim IP" di tab Server VPN
+> (menu Pengaturan) menampilkan akun terhapus yang IP-nya masih tercatat
+> terpakai, diurut dari yang paling lama dihapus. Tombol reklaim (set `ip_vpn`
+> jadi `null` di baris akun yang sudah soft-delete, dicatat di `audit_log` aksi
+> `reklaim_ip`) hanya aktif kalau akun itu tidak punya temuan `drift` berstatus
+> `terbuka` — jadi admin yang memutuskan secara eksplisit, bukan sistem yang
+> nge-reuse diam-diam. Endpoint: `GET/POST admin/pengaturan/ip-reklaim[/{id}]`
+> di `PengaturanController`.
+
 ### 11.10b Lapisan layanan
 
 | Kelas | Tanggung jawab |
 |---|---|
 | `RouterOs\RouterOsClient` | Pembungkus REST API. Tidak menyentuh basis data, bisa diuji tanpa router |
-| `Vpn\AlokasiIp` | Memilih alamat VPN berikutnya. IP **tidak pernah** didaur ulang |
+| `Vpn\AlokasiIp` | Memilih alamat VPN berikutnya. IP **tidak pernah** didaur ulang otomatis (lihat reklaim manual di bawah) |
 | `Vpn\PenerbitAkun` | Menerbitkan baris `akun_vpn` dari pengajuan disetujui |
-| `Vpn\NomorPengajuan` | Menerbitkan `VPN-YYYY-NNNN` di dalam transaksi terkunci |
+| `Vpn\NomorPengajuan` | Menerbitkan `VPN-YYYY-XX99` (2 huruf + 2 angka acak, sengaja tidak berurutan), retry sampai unik |
 | `Vpn\ProvisioningService` | Seluruh operasi siklus hidup ke router |
 | `Vpn\PencatatSesi` | Menyelaraskan log sesi dengan `/ppp active` |
 | `Vpn\SinkronisasiService` | Deteksi drift dan rekonsiliasi push/pull |

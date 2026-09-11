@@ -23,6 +23,9 @@ class AkunVpnResource extends JsonResource
             'mulai_pada'      => $this->mulai_pada?->toDateString(),
             'selesai_pada'    => $this->selesai_pada?->toDateString(),
             'sisa_hari'       => $this->selesai_pada ? (int) now()->startOfDay()->diffInDays($this->selesai_pada, false) : null,
+            // Dipakai frontend saat sisa_hari <= 0: hari terakhir dihitung sampai
+            // akhir hari (23:59:59), bukan langsung dianggap habis (lihat ProsesKedaluwarsa).
+            'sisa_jam'        => $this->selesai_pada ? max(0, (int) now()->diffInHours($this->selesai_pada->copy()->endOfDay(), false)) : null,
             'pesan_error'     => $this->pesan_error,
             'disinkron_pada'  => $this->disinkron_pada?->toIso8601String(),
             'vps'             => new VpsAdminResource($this->whenLoaded('vps')),

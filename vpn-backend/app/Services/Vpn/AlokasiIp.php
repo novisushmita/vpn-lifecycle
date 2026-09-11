@@ -48,10 +48,17 @@ class AlokasiIp
 
     public function jumlahTersisa(): int
     {
-        [$awal, $akhir] = $this->batas();
-        $total = $akhir - $awal + 1;
+        return $this->ringkasan()['tersisa'];
+    }
 
-        return max(0, $total - AkunVpn::withTrashed()->whereNotNull('ip_vpn')->count());
+    /** @return array{total:int, terpakai:int, tersisa:int} */
+    public function ringkasan(): array
+    {
+        [$awal, $akhir] = $this->batas();
+        $total    = $akhir - $awal + 1;
+        $terpakai = AkunVpn::withTrashed()->whereNotNull('ip_vpn')->count();
+
+        return ['total' => $total, 'terpakai' => $terpakai, 'tersisa' => max(0, $total - $terpakai)];
     }
 
     /** @return array{0:int,1:int} */

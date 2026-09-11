@@ -42,6 +42,35 @@ export async function tungguOperasi(operasiId, onKabar) {
   }
 }
 
+/**
+ * Ping manual "Ping sekarang" sengaja tidak bikin baris operasi_router (biar
+ * buku besar itu murni data ping otomatis), jadi statusnya dilacak lewat
+ * token cache, bukan admin/operasi/{id}.
+ *
+ * @param {string} token
+ * @returns {Promise<object>} isi cache saat selesai
+ */
+export async function tungguPingManual(token) {
+  const mulai = Date.now();
+
+  for (;;) {
+    if (Date.now() - mulai > BATAS_MS) {
+      throw new Error(
+        "Pemeriksaan belum selesai setelah dua menit. Periksa apakah queue worker berjalan."
+      );
+    }
+
+    const baris = await apiAdmin(`admin/vps-ping-status/${token}`);
+
+    if (baris.status === "sukses") return baris;
+    if (baris.status === "gagal") {
+      throw new Error(baris.pesan_error || "Pemeriksaan gagal tanpa keterangan.");
+    }
+
+    await new Promise((r) => setTimeout(r, SELANG));
+  }
+}
+
 /** Kata yang ditampilkan ke admin untuk tiap status antrean. */
 export function labelStatus(status) {
   return {

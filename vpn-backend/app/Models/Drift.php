@@ -37,4 +37,9 @@ class Drift extends Model
     {
         return $this->belongsTo(Vps::class);
     }
+
+    public function diselesaikanOleh()
+    {
+        return $this->belongsTo(User::class, 'diselesaikan_oleh');
+    }
 }

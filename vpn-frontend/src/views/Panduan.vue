@@ -20,9 +20,7 @@ function pecah(judul) {
 <template>
   <section class="card">
     <h1 class="section-title">Panduan</h1>
-    <p class="section-subtitle">
-      Panduan pengajuan akses VPN dan panduan penggunaan sesuai perangkat Anda.
-    </p>
+    <p class="section-subtitle"></p>
 
     <div class="ptabs">
       <button

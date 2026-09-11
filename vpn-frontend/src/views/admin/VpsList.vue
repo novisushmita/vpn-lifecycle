@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, reactive, ref } from "vue";
 import { apiAdmin } from "../../lib/api";
 import { waktuSingkat } from "../../lib/format";
-import { tungguOperasi } from "../../lib/operasi";
+import { tungguPingManual } from "../../lib/operasi";
 
 const daftar = ref([]);
 const memuat = ref(false);
@@ -121,10 +121,10 @@ async function ping(v) {
   pingGagal.value = false;
   delete galatPing[v.id];
   try {
-    // Ping dijalankan di antrean; tunggu operasinya selesai lalu baca
+    // Ping dijalankan di antrean; tunggu tokennya kelar lalu baca
     // baris VPS yang sudah diperbarui.
     const antre = await apiAdmin(`admin/vps/${v.id}/ping`, { method: "POST" });
-    if (antre.operasi_id) await tungguOperasi(antre.operasi_id);
+    if (antre.token) await tungguPingManual(antre.token);
     const segar = await apiAdmin(`admin/vps/${v.id}`);
     const data = segar.data ?? segar;
     Object.assign(v, data);

@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { apiAdmin } from "../../lib/api";
 import { tungguOperasi, labelStatus } from "../../lib/operasi";
-import OperasiRouter from "./OperasiRouter.vue";
+import { waktuSingkat } from "../../lib/format";
 
 const daftar = ref([]);
 const memuat = ref(false);
@@ -84,8 +84,6 @@ onMounted(muat);
       muncul ketika konfigurasi diubah manual lewat Winbox.
     </p>
 
-    <OperasiRouter />
-
     <div class="toolbar" style="margin-top: 24px">
       <button class="btn btn-primary btn-sm" :disabled="memeriksa" @click="periksa">
         {{ memeriksa ? "Memeriksa..." : "Periksa sekarang" }}
@@ -111,16 +109,21 @@ onMounted(muat);
             <th style="width: 140px">Jenis selisih</th>
             <th>Menurut sistem</th>
             <th>Di router</th>
+            <th v-if="filterStatus === 'terbuka'" style="width: 130px">Terdeteksi</th>
+            <template v-else>
+              <th style="width: 130px">Diselesaikan</th>
+              <th style="width: 130px">Oleh</th>
+            </template>
             <th style="width: 200px"></th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="memuat">
-            <td colspan="6" style="text-align: center; color: var(--color-text-faint)">Memuat...</td>
+            <td colspan="7" style="text-align: center; color: var(--color-text-faint)">Memuat...</td>
           </tr>
           <tr v-else-if="!daftar.length">
-            <td colspan="6" style="text-align: center; color: var(--color-text-faint)">
-              Tidak ada selisih. Data sistem dan router sinkron.
+            <td colspan="7" style="text-align: center; color: var(--color-text-faint)">
+              {{ filterStatus === "terbuka" ? "Tidak ada selisih. Data sistem dan router sinkron." : "Belum ada riwayat." }}
             </td>
           </tr>
           <tr v-for="d in daftar" :key="d.id">
@@ -136,6 +139,13 @@ onMounted(muat);
             </td>
             <td class="mono">{{ d.nilai_db || "-" }}</td>
             <td class="mono">{{ d.nilai_router || "-" }}</td>
+            <td v-if="filterStatus === 'terbuka'" class="mono" style="white-space: nowrap">
+              {{ waktuSingkat(d.terdeteksi_pada) }}
+            </td>
+            <template v-else>
+              <td class="mono" style="white-space: nowrap">{{ waktuSingkat(d.diselesaikan_pada) }}</td>
+              <td>{{ d.diselesaikan_oleh || "-" }}</td>
+            </template>
             <td>
               <div v-if="d.status === 'terbuka'" class="aksi-baris" style="justify-content: flex-end">
                 <button

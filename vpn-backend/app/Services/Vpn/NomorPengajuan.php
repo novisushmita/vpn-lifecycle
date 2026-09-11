@@ -3,31 +3,37 @@
 namespace App\Services\Vpn;
 
 use App\Models\Pengajuan;
-use Illuminate\Support\Facades\DB;
 
 /**
- * Menerbitkan nomor pengajuan VPN-YYYY-NNNN.
+ * Menerbitkan nomor pengajuan VPN-YYYY-XX99 (2 huruf acak + 2 angka acak),
+ * sengaja tidak berurutan supaya nomor pengajuan tidak menebak jumlah
+ * pengajuan yang sudah masuk.
  *
- * Memakai penguncian tabel di dalam transaksi. Menghitung dari jumlah baris
- * (seperti versi dummy di frontend) menimbulkan race condition: dua pengajuan
- * bersamaan akan mendapat nomor yang sama. Unique constraint pada kolom nomor
- * adalah jaring pengaman terakhir.
+ * Coba beberapa kali sampai dapat yang belum dipakai; unique constraint pada
+ * kolom nomor tetap jadi jaring pengaman terakhir kalau ada tabrakan.
  */
 class NomorPengajuan
 {
     public function berikutnya(): string
     {
-        $tahun = now()->year;
+        $tahun  = now()->year;
+        $huruf  = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // tanpa I/O, gampang tertukar 1/0
 
-        return DB::transaction(function () use ($tahun) {
-            $terakhir = Pengajuan::where('nomor', 'like', "VPN-{$tahun}-%")
-                ->lockForUpdate()
-                ->orderByDesc('nomor')
-                ->value('nomor');
+        for ($percobaan = 0; $percobaan < 20; $percobaan++) {
+            $nomor = sprintf(
+                'VPN-%d-%s%s%d%d',
+                $tahun,
+                $huruf[random_int(0, strlen($huruf) - 1)],
+                $huruf[random_int(0, strlen($huruf) - 1)],
+                random_int(0, 9),
+                random_int(0, 9),
+            );
 
-            $urutan = $terakhir ? ((int) substr($terakhir, -4)) + 1 : 1;
+            if (! Pengajuan::where('nomor', $nomor)->exists()) {
+                return $nomor;
+            }
+        }
 
-            return sprintf('VPN-%d-%04d', $tahun, $urutan);
-        });
+        throw new \RuntimeException('Gagal membuat nomor pengajuan unik setelah beberapa percobaan.');
     }
 }

@@ -11,12 +11,13 @@ use App\Services\RouterOs\RouterOsClient;
 use App\Services\RouterOs\RouterOsException;
 use App\Jobs\HapusVpsJob;
 use App\Jobs\PingVpsJob;
-use App\Models\OperasiRouter;
 use App\Models\VpsHealthCheck;
 use App\Services\Vpn\PenghapusVps;
 use App\Services\Vpn\ProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class VpsController extends Controller
 {
@@ -110,21 +111,29 @@ class VpsController extends Controller
      * dalam request HTTP membuat halaman menggantung dan, pada banyak VPS
      * sekaligus, menghabiskan worker PHP-FPM (CLAUDE.md 6.2).
      */
-    public function ping(Request $request, Vps $vp): JsonResponse
+    public function ping(Vps $vp): JsonResponse
     {
-        $operasi = OperasiRouter::create([
-            'jenis'       => 'ping',
-            'vps_id'      => $vp->id,
-            'status'      => 'antre',
-            'payload'     => ['alamat_ip' => $vp->alamat_ip],
-            'dipicu_oleh' => $request->user()->id,
-        ]);
+        // Sengaja TIDAK bikin baris operasi_router: buku besar itu cuma buat
+        // ping otomatis (vps:ping) yang jadi data Bab 4. Ping manual dilacak
+        // lewat cache token, bukan tabel — supaya operasi_router murni data
+        // penjadwal, dan tabel gak numpuk baris debug klik admin.
+        $token = (string) Str::uuid();
+        Cache::put("vps_ping:{$token}", ['status' => 'antre'], 120);
 
-        PingVpsJob::dispatch($operasi->id, $vp->id);
+        PingVpsJob::dispatch(null, $vp->id, $token);
 
         return response()->json([
-            'message'    => 'Pemeriksaan diantrekan.',
-            'operasi_id' => $operasi->id,
+            'message' => 'Pemeriksaan diantrekan.',
+            'token'   => $token,
         ], 202);
+    }
+
+    public function statusPing(string $token): JsonResponse
+    {
+        $data = Cache::get("vps_ping:{$token}");
+
+        abort_if($data === null, 404, 'Token pemeriksaan tidak ditemukan atau sudah kedaluwarsa.');
+
+        return response()->json($data);
     }
 }

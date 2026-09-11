@@ -16,6 +16,74 @@ const berubah = computed(() =>
   daftar.value.filter((p) => String(nilai[p.kunci]) !== String(p.nilai))
 );
 
+const daftarUmum = computed(() => daftar.value.filter((p) => p.kunci !== "alamat_server_vpn"));
+const alamatServer = computed(() => daftar.value.find((p) => p.kunci === "alamat_server_vpn"));
+
+/* ---------------- tes koneksi router ---------------- */
+const mengujiKoneksi = ref(false);
+const hasilKoneksi = ref(null);
+
+async function tesKoneksi() {
+  mengujiKoneksi.value = true;
+  hasilKoneksi.value = null;
+  try {
+    hasilKoneksi.value = await apiAdmin("admin/pengaturan/tes-koneksi-router", { method: "POST" });
+  } catch (e) {
+    hasilKoneksi.value = { tersambung: false, pesan: e.message };
+  } finally {
+    mengujiKoneksi.value = false;
+  }
+}
+
+/* ---------------- reklaim IP ---------------- */
+const ipTersisa = ref(null);
+const kandidatIp = ref([]);
+const memuatIp = ref(false);
+const galatIp = ref("");
+const pesanIp = ref("");
+const mereklaim = ref(false);
+const terpilih = ref([]);
+
+const bisaDireklaim = computed(() => kandidatIp.value.filter((k) => k.bisa_direklaim));
+const semuaTerpilih = computed(() =>
+  bisaDireklaim.value.length > 0 && bisaDireklaim.value.every((k) => terpilih.value.includes(k.id))
+);
+
+function toggleSemua() {
+  terpilih.value = semuaTerpilih.value ? [] : bisaDireklaim.value.map((k) => k.id);
+}
+
+async function muatKandidatIp() {
+  memuatIp.value = true;
+  galatIp.value = "";
+  try {
+    const r = await apiAdmin("admin/pengaturan/ip-reklaim");
+    ipTersisa.value = r.ip_tersisa;
+    kandidatIp.value = r.kandidat;
+    terpilih.value = [];
+  } catch (e) {
+    galatIp.value = e.message;
+  } finally {
+    memuatIp.value = false;
+  }
+}
+
+async function reklaimTerpilih() {
+  if (!terpilih.value.length) return;
+  mereklaim.value = true;
+  galatIp.value = "";
+  pesanIp.value = "";
+  try {
+    const r = await apiAdmin("admin/pengaturan/ip-reklaim", { method: "POST", body: { ids: terpilih.value } });
+    pesanIp.value = r.message;
+    await muatKandidatIp();
+  } catch (e) {
+    galatIp.value = e.message;
+  } finally {
+    mereklaim.value = false;
+  }
+}
+
 async function muatPengaturan() {
   memuat.value = true;
   galat.value = "";
@@ -152,6 +220,12 @@ onMounted(async () => {
       <button class="tabs__item" :class="{ 'is-active': tab === 'umum' }" @click="tab = 'umum'">
         Umum
       </button>
+      <button class="tabs__item" :class="{ 'is-active': tab === 'server' }" @click="tab = 'server'">
+        Server VPN
+      </button>
+      <button class="tabs__item" :class="{ 'is-active': tab === 'reklaim' }" @click="tab = 'reklaim'; if (!kandidatIp.length) muatKandidatIp()">
+        Reklaim IP
+      </button>
       <button class="tabs__item" :class="{ 'is-active': tab === 'paket' }" @click="tab = 'paket'">
         Paket Bandwidth
       </button>
@@ -165,7 +239,7 @@ onMounted(async () => {
       <p v-if="memuat" style="color: var(--color-text-faint)">Memuat...</p>
 
       <div v-else class="form-grid">
-        <div v-for="p in daftar" :key="p.kunci" class="field">
+        <div v-for="p in daftarUmum" :key="p.kunci" class="field">
           <label class="field-label">{{ p.label }}</label>
 
           <input
@@ -210,6 +284,102 @@ onMounted(async () => {
         Selang pemeriksaan dibaca ulang oleh penjadwal pada siklus berikutnya.
         Bila <span class="mono">schedule:work</span> sedang berjalan, hentikan
         dan jalankan kembali agar perubahan selang waktu langsung berlaku.
+      </div>
+    </template>
+
+    <!-- ==================== SERVER VPN ==================== -->
+    <template v-else-if="tab === 'server'">
+      <div v-if="galat" class="notice notice-danger">{{ galat }}</div>
+      <div v-if="pesan" class="notice notice-success">{{ pesan }}</div>
+
+      <p v-if="memuat" style="color: var(--color-text-faint)">Memuat...</p>
+
+      <template v-else-if="alamatServer">
+        <div class="field" style="max-width: 420px">
+          <label class="field-label">{{ alamatServer.label }}</label>
+          <div style="display: flex; gap: 8px">
+            <input v-model="nilai[alamatServer.kunci]" class="input mono" style="flex: 1" />
+            <button class="btn btn-secondary" :disabled="mengujiKoneksi" @click="tesKoneksi">
+              {{ mengujiKoneksi ? "Menguji..." : "Tes koneksi ke MikroTik" }}
+            </button>
+          </div>
+          <span class="field-hint">{{ alamatServer.bantuan }}</span>
+        </div>
+
+        <div v-if="hasilKoneksi" class="notice" :class="hasilKoneksi.tersambung ? 'notice-success' : 'notice-danger'" style="margin-top: 12px; max-width: 420px">
+          <template v-if="hasilKoneksi.tersambung">
+            Tersambung ke {{ hasilKoneksi.identity }} (RouterOS {{ hasilKoneksi.versi }}, {{ hasilKoneksi.board }}).
+          </template>
+          <template v-else>{{ hasilKoneksi.pesan }}</template>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="aksi-baris">
+          <button class="btn btn-primary" :disabled="menyimpan || !berubah.length" @click="simpan">
+            {{ menyimpan ? "Menyimpan..." : berubah.length
+                ? `Simpan ${berubah.length} perubahan` : "Tidak ada perubahan" }}
+          </button>
+          <button class="btn btn-secondary" :disabled="menyimpan" @click="muatPengaturan">
+            Batalkan perubahan
+          </button>
+        </div>
+      </template>
+    </template>
+
+    <!-- ==================== REKLAIM IP ==================== -->
+    <template v-else-if="tab === 'reklaim'">
+      <p class="section-subtitle">
+        IP dari akun yang sudah dihapus tidak otomatis dipakai ulang (lihat
+        <span class="mono">ip_tersisa</span>: <strong>{{ ipTersisa ?? "-" }}</strong>).
+        Reklaim manual hanya boleh untuk akun yang tidak punya temuan drift terbuka,
+        supaya IP yang direklaim dipastikan sudah bersih dari sisa aturan firewall di router.
+      </p>
+
+      <div v-if="galatIp" class="notice notice-danger">{{ galatIp }}</div>
+      <div v-if="pesanIp" class="notice notice-success">{{ pesanIp }}</div>
+
+      <div class="toolbar" v-if="kandidatIp.length">
+        <button class="btn btn-primary btn-sm" :disabled="!terpilih.length || mereklaim" @click="reklaimTerpilih">
+          {{ mereklaim ? "Memproses..." : `Reklaim terpilih (${terpilih.length})` }}
+        </button>
+        <div class="toolbar__spacer"></div>
+        <button class="btn btn-secondary btn-sm" @click="muatKandidatIp">Muat ulang</button>
+      </div>
+
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 30px"><input type="checkbox" :checked="semuaTerpilih" @change="toggleSemua" /></th>
+              <th>Username</th>
+              <th style="width: 130px">IP</th>
+              <th style="width: 130px">Dihapus pada</th>
+              <th style="width: 140px">VPS sebelumnya</th>
+              <th style="width: 140px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="memuatIp">
+              <td colspan="6" style="text-align: center; color: var(--color-text-faint)">Memuat...</td>
+            </tr>
+            <tr v-else-if="!kandidatIp.length">
+              <td colspan="6" style="text-align: center; color: var(--color-text-faint)">Tidak ada akun terhapus dengan IP tersisa.</td>
+            </tr>
+            <tr v-for="k in kandidatIp" :key="k.id">
+              <td><input v-if="k.bisa_direklaim" type="checkbox" :value="k.id" v-model="terpilih" /></td>
+              <td class="mono">{{ k.username }}</td>
+              <td class="mono">{{ k.ip_vpn }}</td>
+              <td>{{ k.dihapus_pada ? new Date(k.dihapus_pada).toLocaleString("id-ID") : "-" }}</td>
+              <td>{{ k.vps }}</td>
+              <td style="text-align: right">
+                <span v-if="!k.bisa_direklaim" class="badge badge-neutral" title="Masih ada temuan drift terbuka untuk akun ini">
+                  belum bisa direklaim
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </template>
 

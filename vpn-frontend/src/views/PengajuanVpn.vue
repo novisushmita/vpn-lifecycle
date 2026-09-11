@@ -122,7 +122,7 @@ function lihatStatus() {
 <template>
   <section class="card">
     <h1 class="section-title">Pengajuan VPN</h1>
-    <p class="section-subtitle">Lengkapi formulir berikut untuk mengajukan akses VPN.</p>
+    <p class="section-subtitle"></p>
 
     <form novalidate @submit.prevent="handleSubmit">
       <div class="form-grid" style="margin-top: 22px">
@@ -145,7 +145,7 @@ function lihatStatus() {
             type="text"
             class="input"
             :class="{ 'has-error': errors.identitas }"
-            placeholder="NIP, NIK, atau nomor identitas lain"
+            placeholder="NIP, NIM, NIK"
           />
           <span v-if="errors.identitas" class="field-error">{{ errors.identitas }}</span>
         </div>

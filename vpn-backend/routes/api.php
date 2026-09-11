@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::apiResource('vps', AdminVpsController::class)->parameters(['vps' => 'vp']);
     Route::get('vps/{vp}/dampak-hapus', [AdminVpsController::class, 'dampak']);
     Route::post('vps/{vp}/ping', [AdminVpsController::class, 'ping']);
+    Route::get('vps-ping-status/{token}', [AdminVpsController::class, 'statusPing']);
 
     // Akun VPN — transisi siklus hidup
     Route::get('akun', [AkunVpnController::class, 'index']);
@@ -81,6 +82,20 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
             $q->where('jenis', $jenis);
         }
 
+        if ($hari = $req->query('hari_terakhir')) {
+            $q->where('created_at', '>=', now()->subDays((int) $hari));
+        }
+
+        if ($jam = $req->query('jam_terakhir')) {
+            // Rolling N jam dari sekarang, bukan hari kalender — jadi tidak
+            // perlu mikirin batas hari/zona waktu sama sekali.
+            $q->where('created_at', '>=', now()->subHours((int) $jam));
+        }
+
+        if ($req->boolean('otomatis_saja')) {
+            $q->whereNull('dipicu_oleh');
+        }
+
         return $q->limit((int) $req->query('limit', 200))->get()->map(fn ($o) => [
             'id'           => $o->id,
             'jenis'        => $o->jenis,
@@ -93,6 +108,7 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
             'dipicu_oleh'  => $o->dipicuOleh?->name,
             'dimulai_pada' => $o->dimulai_pada?->toIso8601String(),
             'selesai_pada' => $o->selesai_pada?->toIso8601String(),
+            'hasil'        => $o->hasil,
         ]);
     });
 
@@ -113,6 +129,9 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     // Pengaturan umum
     Route::get('pengaturan', [PengaturanController::class, 'index']);
     Route::put('pengaturan', [PengaturanController::class, 'update']);
+    Route::post('pengaturan/tes-koneksi-router', [PengaturanController::class, 'tesKoneksiRouter']);
+    Route::get('pengaturan/ip-reklaim', [PengaturanController::class, 'kandidatReklaimIp']);
+    Route::post('pengaturan/ip-reklaim', [PengaturanController::class, 'reklaimIp']);
 
     // Paket bandwidth: perubahan merambat ke PPP profile di router
     Route::get('paket', [PaketBandwidthController::class, 'index']);

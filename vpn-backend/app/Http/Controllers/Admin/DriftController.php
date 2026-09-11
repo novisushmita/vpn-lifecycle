@@ -15,7 +15,7 @@ class DriftController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $q = Drift::with('akunVpn:id,username', 'vps:id,nama')->latest('id');
+        $q = Drift::with('akunVpn:id,username', 'vps:id,nama', 'diselesaikanOleh:id,name')->latest('id');
 
         if ($status = $request->query('status', 'terbuka')) {
             $q->where('status', $status);
@@ -32,8 +32,10 @@ class DriftController extends Controller
             'nilai_db'        => $d->nilai_db,
             'nilai_router'    => $d->nilai_router,
             'status'          => $d->status,
-            'resolusi'        => $d->resolusi,
-            'terdeteksi_pada' => $d->terdeteksi_pada?->toIso8601String(),
+            'resolusi'          => $d->resolusi,
+            'terdeteksi_pada'   => $d->terdeteksi_pada?->toIso8601String(),
+            'diselesaikan_pada' => $d->diselesaikan_pada?->toIso8601String(),
+            'diselesaikan_oleh' => $d->diselesaikanOleh?->name,
         ]));
     }
 
