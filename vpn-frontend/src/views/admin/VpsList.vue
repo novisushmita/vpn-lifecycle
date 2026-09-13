@@ -20,12 +20,22 @@ const periksaSemuaBerjalan = ref(false);
 const progres = ref({ selesai: 0, total: 0 });
 const galatPing = reactive({});
 let halamanAktif = true;
-onBeforeUnmount(() => { halamanAktif = false; });
+onBeforeUnmount(() => { halamanAktif = false; document.removeEventListener("click", tutupMenu); });
+
+const menuTerbuka = ref(null);
+function tutupMenu() { menuTerbuka.value = null; }
+document.addEventListener("click", tutupMenu);
 
 const modal = ref(false);
 const sedangEdit = ref(null);
 const form = reactive({ nama: "", alamat_ip: "", keterangan: "", aktif: true });
 const errors = reactive({});
+
+// riwayat akses (log sesi per VPS)
+const modalLog = ref(false);
+const vpsLog = ref(null);
+const sesiLog = ref([]);
+const memuatLog = ref(false);
 
 async function muat() {
   galat.value = "";
@@ -184,6 +194,29 @@ async function periksaSemua() {
   }
 }
 
+async function bukaLog(v) {
+  vpsLog.value = v;
+  modalLog.value = true;
+  memuatLog.value = true;
+  sesiLog.value = [];
+  try {
+    sesiLog.value = await apiAdmin(`admin/vps/${v.id}/sesi`);
+  } catch (e) {
+    galat.value = e.message;
+    modalLog.value = false;
+  } finally {
+    memuatLog.value = false;
+  }
+}
+
+function formatDurasi(detik) {
+  if (detik == null) return "-";
+  const j = Math.floor(detik / 3600);
+  const m = Math.floor((detik % 3600) / 60);
+  const d = detik % 60;
+  return [j, m, d].map((n) => String(n).padStart(2, "0")).join(":");
+}
+
 function hasilPing(v) {
   const p = v.ping_terakhir;
   if (!p) return "Belum diperiksa";
@@ -272,15 +305,17 @@ onMounted(muat);
               </div>
             </td>
             <td class="mono">{{ v.jumlah_akun ?? 0 }}</td>
-            <td>
-              <div class="aksi-baris" style="justify-content: flex-end">
+            <td style="text-align: right; position: relative">
+              <button class="btn btn-secondary btn-sm" @click.stop="menuTerbuka = menuTerbuka === v.id ? null : v.id">⋯</button>
+              <div v-if="menuTerbuka === v.id" class="row-menu" @click.stop>
                 <button
-                  class="btn btn-secondary btn-sm"
+                  class="row-menu__item"
                   :disabled="pingBerjalan !== null || memuat || periksaSemuaBerjalan"
-                  @click="ping(v)"
-                >{{ pingBerjalan === v.id ? "..." : "Ping" }}</button>
-                <button class="btn btn-secondary btn-sm" :disabled="periksaSemuaBerjalan" @click="bukaEdit(v)">Ubah</button>
-                <button class="btn btn-danger btn-sm" :disabled="periksaSemuaBerjalan" @click="bukaHapus(v)">Hapus</button>
+                  @click="menuTerbuka = null; ping(v)"
+                >{{ pingBerjalan === v.id ? "Memeriksa..." : "Ping" }}</button>
+                <button class="row-menu__item" @click="menuTerbuka = null; bukaLog(v)">Log</button>
+                <button class="row-menu__item" :disabled="periksaSemuaBerjalan" @click="menuTerbuka = null; bukaEdit(v)">Ubah</button>
+                <button class="row-menu__item row-menu__item--danger" :disabled="periksaSemuaBerjalan" @click="menuTerbuka = null; bukaHapus(v)">Hapus</button>
               </div>
             </td>
           </tr>
@@ -356,6 +391,48 @@ onMounted(muat);
     </div>
   </div>
 
+  <div v-if="modalLog" class="modal-overlay" @click.self="modalLog = false">
+    <div class="modal-box" style="max-width: 720px">
+      <button class="modal-close" @click="modalLog = false">×</button>
+      <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 4px">
+        Riwayat akses{{ vpsLog ? ` — ${vpsLog.nama}` : "" }}
+      </h3>
+      <p style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 12px">
+        Sesi VPN seluruh akun yang menuju VPS ini, 100 terbaru.
+      </p>
+
+      <p v-if="memuatLog" style="color: var(--color-text-muted)">Memuat...</p>
+      <div v-else-if="!sesiLog.length" class="notice notice-info">
+        Belum ada riwayat akses untuk VPS ini.
+      </div>
+      <div v-else class="table-scroll" style="max-height: 420px">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Akun</th>
+              <th>Mulai</th>
+              <th>Selesai</th>
+              <th style="width: 90px">Durasi</th>
+              <th>IP asal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="s in sesiLog" :key="s.id">
+              <td class="mono">{{ s.username }}</td>
+              <td class="mono">{{ waktuSingkat(s.mulai_pada) }}</td>
+              <td class="mono">
+                <span v-if="s.aktif" class="badge badge-success">aktif sekarang</span>
+                <template v-else>{{ waktuSingkat(s.selesai_pada) }}</template>
+              </td>
+              <td class="mono">{{ formatDurasi(s.durasi_detik) }}</td>
+              <td class="mono">{{ s.ip_asal || "-" }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div v-if="modal" class="modal-overlay" @click.self="modal = false">
     <div class="modal-box">
       <button class="modal-close" @click="modal = false">×</button>
@@ -392,3 +469,34 @@ onMounted(muat);
     </div>
   </div>
 </template>
+
+<style scoped>
+.row-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 140px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.row-menu__item {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--color-text);
+}
+.row-menu__item:hover:not(:disabled) { background: var(--color-surface-sunk); }
+.row-menu__item:disabled { color: var(--color-text-faint); cursor: not-allowed; }
+.row-menu__item--danger { color: var(--color-danger); }
+</style>

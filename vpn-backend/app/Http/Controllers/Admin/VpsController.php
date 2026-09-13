@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SimpanVpsRequest;
 use App\Http\Resources\VpsAdminResource;
+use App\Models\SesiVpn;
 use App\Models\Vps;
 use App\Services\PencatatAudit;
 use App\Services\RouterOs\RouterOsClient;
@@ -40,6 +41,24 @@ class VpsController extends Controller
     public function show(Vps $vp)
     {
         return new VpsAdminResource($vp->loadCount('akunVpn'));
+    }
+
+    /** Riwayat sesi seluruh akun yang menuju VPS ini (CLAUDE.md 4.6). */
+    public function sesi(Vps $vp)
+    {
+        return response()->json(
+            SesiVpn::whereHas('akunVpn', fn ($q) => $q->where('vps_id', $vp->id))
+                ->latest('mulai_pada')->limit(100)->get()->map(fn ($s) => [
+                    'id'           => $s->id,
+                    'username'     => $s->username_snapshot,
+                    'ip_vpn'       => $s->ip_vpn,
+                    'ip_asal'      => $s->ip_asal,
+                    'mulai_pada'   => $s->mulai_pada?->toIso8601String(),
+                    'selesai_pada' => $s->selesai_pada?->toIso8601String(),
+                    'durasi_detik' => $s->durasi_detik,
+                    'aktif'        => $s->aktif,
+                ])
+        );
     }
 
     public function update(SimpanVpsRequest $request, Vps $vp): JsonResponse

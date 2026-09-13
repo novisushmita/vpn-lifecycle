@@ -22,6 +22,13 @@ const pilihanVps = ref([]);
 const pilihanPaket = ref([]);
 const editErrors = ref({});
 const editForm = reactive({ username: "", password: "", vps_id: null, paket_bandwidth_id: null, putus_sesi: false });
+
+// Edit data pemohon: beda dari edit akun VPN di atas, murni administratif,
+// tidak menyentuh router sama sekali (jadi tidak lewat antrean).
+const modalPemohon = ref(false);
+const pemohonErrors = ref({});
+const memprosesPemohon = ref(false);
+const pemohonForm = reactive({ nama: "", identitas: "", instansi: "", email: "", keperluan: "", keperluan_detail: "" });
 let timerEdit;
 let ditutup = false;
 onBeforeUnmount(() => { ditutup = true; clearTimeout(timerEdit); });
@@ -74,6 +81,38 @@ async function simpanEdit() {
     memproses.value = false;
     editErrors.value = e.errors ?? {};
     galat.value = e.message;
+  }
+}
+
+function bukaEditPemohon() {
+  galat.value = "";
+  pemohonErrors.value = {};
+  Object.assign(pemohonForm, {
+    nama: a.value.pemohon.nama,
+    identitas: a.value.pemohon.identitas,
+    instansi: a.value.pemohon.instansi,
+    email: a.value.pemohon.email,
+    keperluan: a.value.pemohon.keperluan,
+    keperluan_detail: a.value.pemohon.keperluan_detail || "",
+  });
+  modalPemohon.value = true;
+}
+
+async function simpanPemohon() {
+  memprosesPemohon.value = true;
+  galat.value = "";
+  pesan.value = "";
+  pemohonErrors.value = {};
+  try {
+    await apiAdmin(`admin/akun/${a.value.id}/pemohon`, { method: "PUT", body: { ...pemohonForm } });
+    modalPemohon.value = false;
+    pesan.value = "Data pemohon diperbarui.";
+    await muat();
+  } catch (e) {
+    pemohonErrors.value = e.errors ?? {};
+    galat.value = e.message;
+  } finally {
+    memprosesPemohon.value = false;
   }
 }
 
@@ -305,6 +344,10 @@ onBeforeUnmount(() => clearInterval(jamTangan));
           <div class="detail-item__label">Password</div>
           <div class="detail-item__value mono">{{ kredensial.password }}</div>
         </div>
+        <div class="detail-item">
+          <div class="detail-item__label">PSK IPsec</div>
+          <div class="detail-item__value mono">{{ kredensial.ipsec_psk }}</div>
+        </div>
       </div>
 
       <!-- Transisi siklus hidup -->
@@ -312,6 +355,7 @@ onBeforeUnmount(() => clearInterval(jamTangan));
       <h2 class="section-title" style="font-size: 16px">Tindakan</h2>
       <div class="aksi-baris" style="margin-top: 10px">
         <button v-if="['aktif', 'akan_kedaluwarsa', 'dinonaktifkan', 'kedaluwarsa'].includes(a.status)" class="btn btn-secondary" :disabled="memproses" @click="bukaEdit">Edit akun</button>
+        <button class="btn btn-secondary" @click="bukaEditPemohon">Edit data pemohon</button>
         <button
           v-if="a.status === 'aktif' || a.status === 'akan_kedaluwarsa'"
           class="btn btn-warning"
@@ -449,6 +493,46 @@ onBeforeUnmount(() => clearInterval(jamTangan));
       <div class="aksi-baris" style="margin-top: 16px">
         <button type="button" class="btn btn-secondary" :disabled="memproses" @click="modalEdit = false; editForm.password = ''">Batal</button>
         <button type="submit" class="btn btn-primary" :disabled="memproses">{{ memproses ? 'Mengirim...' : 'Simpan perubahan' }}</button>
+      </div>
+    </form>
+  </div>
+
+  <div v-if="modalPemohon" class="modal-overlay">
+    <form class="modal-box" @submit.prevent="simpanPemohon">
+      <h3>Edit data pemohon</h3>
+      <p class="section-subtitle">
+        Koreksi data diri/keperluan pemohon. Tidak menyentuh router atau status akun.
+      </p>
+      <div v-if="galat" class="notice notice-danger">{{ galat }}</div>
+      <div class="field">
+        <label class="field-label" for="pemohon-nama">Nama</label>
+        <input id="pemohon-nama" v-model="pemohonForm.nama" class="input" required maxlength="120" :disabled="memprosesPemohon" />
+        <span class="field-error">{{ pemohonErrors.nama?.[0] }}</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="pemohon-identitas">Identitas (NIP/NIK)</label>
+        <input id="pemohon-identitas" v-model="pemohonForm.identitas" class="input" required maxlength="64" :disabled="memprosesPemohon" />
+        <span class="field-error">{{ pemohonErrors.identitas?.[0] }}</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="pemohon-instansi">Instansi</label>
+        <input id="pemohon-instansi" v-model="pemohonForm.instansi" class="input" required maxlength="160" :disabled="memprosesPemohon" />
+        <span class="field-error">{{ pemohonErrors.instansi?.[0] }}</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="pemohon-email">Email</label>
+        <input id="pemohon-email" v-model="pemohonForm.email" class="input" type="email" required maxlength="160" :disabled="memprosesPemohon" />
+        <small>Alamat ini yang dituju saat kirim ulang email kredensial.</small>
+        <span class="field-error">{{ pemohonErrors.email?.[0] }}</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="pemohon-keperluan">Keperluan</label>
+        <input id="pemohon-keperluan" v-model="pemohonForm.keperluan" class="input" required maxlength="120" :disabled="memprosesPemohon" />
+        <span class="field-error">{{ pemohonErrors.keperluan?.[0] }}</span>
+      </div>
+      <div class="aksi-baris" style="margin-top: 16px">
+        <button type="button" class="btn btn-secondary" :disabled="memprosesPemohon" @click="modalPemohon = false">Batal</button>
+        <button type="submit" class="btn btn-primary" :disabled="memprosesPemohon">{{ memprosesPemohon ? "Menyimpan..." : "Simpan" }}</button>
       </div>
     </form>
   </div>

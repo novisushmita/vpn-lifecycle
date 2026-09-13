@@ -51,6 +51,7 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     // VPS
     Route::apiResource('vps', AdminVpsController::class)->parameters(['vps' => 'vp']);
     Route::get('vps/{vp}/dampak-hapus', [AdminVpsController::class, 'dampak']);
+    Route::get('vps/{vp}/sesi', [AdminVpsController::class, 'sesi']);
     Route::post('vps/{vp}/ping', [AdminVpsController::class, 'ping']);
     Route::get('vps-ping-status/{token}', [AdminVpsController::class, 'statusPing']);
 
@@ -58,6 +59,7 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('akun', [AkunVpnController::class, 'index']);
     Route::get('akun/{akun}', [AkunVpnController::class, 'show']);
     Route::put('akun/{akun}', [AkunVpnController::class, 'update']);
+    Route::put('akun/{akun}/pemohon', [AkunVpnController::class, 'updatePemohon']);
     Route::get('akun/{akun}/kredensial', [AkunVpnController::class, 'kredensial']);
     Route::post('akun/{akun}/kirim-ulang-kredensial', [AkunVpnController::class, 'kirimUlangKredensial']);
     Route::get('akun/{akun}/operasi', [AkunVpnController::class, 'operasi']);

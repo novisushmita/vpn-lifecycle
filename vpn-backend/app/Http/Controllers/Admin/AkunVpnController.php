@@ -41,6 +41,38 @@ class AkunVpnController extends Controller
         return response()->json(['message' => 'Perubahan akun sedang diantrekan.', 'operasi_id' => $operasi->id], 202);
     }
 
+    /**
+     * Data diri pemohon (nama, identitas, instansi, email, keperluan) —
+     * beda dari edit akun VPN di atas. Ini murni koreksi data administratif,
+     * TIDAK merambat ke router sama sekali (bukan atribut yang ada di
+     * MikroTik), jadi tidak lewat queue seperti operasi lifecycle lainnya.
+     */
+    public function updatePemohon(Request $request, AkunVpn $akun): JsonResponse
+    {
+        $data = $request->validate([
+            'nama'             => ['required', 'string', 'max:120'],
+            'identitas'        => ['required', 'string', 'max:64'],
+            'instansi'         => ['required', 'string', 'max:160'],
+            'email'            => ['required', 'email', 'max:160'],
+            'keperluan'        => ['required', 'string', 'max:120'],
+            'keperluan_detail' => ['nullable', 'string'],
+        ]);
+
+        $akun->loadMissing('pengajuan');
+        $lama = $akun->pengajuan->only(array_keys($data));
+        $akun->pengajuan->update($data);
+
+        PencatatAudit::catat(
+            'edit_data_pemohon',
+            "Mengubah data pemohon akun {$akun->username}.",
+            $akun,
+            $lama,
+            $data,
+        );
+
+        return response()->json(['message' => 'Data pemohon diperbarui.']);
+    }
+
     public function index(Request $request)
     {
         $q = AkunVpn::with(['vps', 'paketBandwidth', 'pengajuan'])->latest('id');
@@ -77,10 +109,11 @@ class AkunVpnController extends Controller
         );
 
         return response()->json([
-            'username' => $akun->username,
-            'password' => $akun->password,
-            'ip_vpn'   => $akun->ip_vpn,
-            'server'   => $this->alamatServerVpn(),
+            'username'  => $akun->username,
+            'password'  => $akun->password,
+            'ip_vpn'    => $akun->ip_vpn,
+            'server'    => $this->alamatServerVpn(),
+            'ipsec_psk' => (string) config('routeros.ipsec_psk'),
         ]);
     }
 

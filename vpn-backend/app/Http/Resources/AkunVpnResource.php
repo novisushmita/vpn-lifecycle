@@ -34,6 +34,14 @@ class AkunVpnResource extends JsonResource
                 'rate_limit' => $this->paketBandwidth->rateLimit(),
             ]),
             'pengajuan_nomor' => $this->whenLoaded('pengajuan', fn () => $this->pengajuan->nomor),
+            'pemohon'         => $this->whenLoaded('pengajuan', fn () => [
+                'nama'             => $this->pengajuan->nama,
+                'identitas'        => $this->pengajuan->identitas,
+                'instansi'         => $this->pengajuan->instansi,
+                'email'            => $this->pengajuan->email,
+                'keperluan'        => $this->pengajuan->keperluan,
+                'keperluan_detail' => $this->pengajuan->keperluan_detail,
+            ]),
             'router'          => [
                 'secret_id'       => $this->router_secret_id,
                 'address_list_id' => $this->router_addresslist_id,
