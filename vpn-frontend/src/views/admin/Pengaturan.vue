@@ -1,8 +1,10 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRoute } from "vue-router";
 import { apiAdmin } from "../../lib/api";
 
-const tab = ref("umum");
+const route = useRoute();
+const tab = ref(["umum", "server", "reklaim", "paket"].includes(route.query.tab) ? route.query.tab : "umum");
 
 /* ---------------- pengaturan umum ---------------- */
 const daftar = ref([]);
@@ -208,6 +210,7 @@ async function selaraskan(p) {
 onMounted(async () => {
   await muatPengaturan();
   await muatPaket();
+  if (tab.value === "reklaim") await muatKandidatIp();
 });
 </script>
 

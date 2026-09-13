@@ -398,7 +398,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div class="donut-col">
+        <RouterLink :to="{ name: 'admin-akun' }" class="donut-col">
           <div class="donut-wrap">
             <canvas ref="kanvasAkun"></canvas>
             <div class="donut-center">
@@ -409,9 +409,9 @@ onBeforeUnmount(() => {
           <div class="donut-caption">
             {{ data.ringkasan.akun_aktif }} aktif &middot; {{ data.ringkasan.akun_dinonaktifkan }} nonaktif &middot; {{ data.ringkasan.akun_gagal }} gagal
           </div>
-        </div>
+        </RouterLink>
 
-        <div class="donut-col">
+        <RouterLink :to="{ name: 'admin-vps' }" class="donut-col">
           <div class="donut-wrap">
             <canvas ref="kanvasVps"></canvas>
             <div class="donut-center">
@@ -422,9 +422,9 @@ onBeforeUnmount(() => {
           <div class="donut-caption">
             {{ data.ringkasan.vps_up }} up &middot; {{ data.ringkasan.vps_down }} down
           </div>
-        </div>
+        </RouterLink>
 
-        <div class="donut-col">
+        <RouterLink :to="{ name: 'admin-pengajuan' }" class="donut-col">
           <div class="donut-wrap">
             <canvas ref="kanvasPengajuan"></canvas>
             <div class="donut-center">
@@ -433,9 +433,9 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <div class="donut-caption">Pengajuan</div>
-        </div>
+        </RouterLink>
 
-        <div class="donut-col">
+        <RouterLink :to="{ name: 'admin-pengaturan', query: { tab: 'reklaim' } }" class="donut-col">
           <div class="donut-wrap">
             <canvas ref="kanvasIp"></canvas>
             <div class="donut-center">
@@ -446,7 +446,7 @@ onBeforeUnmount(() => {
           <div class="donut-caption">
             {{ data.ip.tersisa }} sisa &middot; {{ data.ip.terpakai }} terpakai
           </div>
-        </div>
+        </RouterLink>
       </div>
 
       <div class="grafik-grid" style="margin-top: 30px">
@@ -546,6 +546,15 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  padding: 8px;
+  transition: background 0.12s ease;
+}
+.donut-col:hover {
+  background: var(--color-surface-sunk);
+  text-decoration: none;
 }
 
 .donut-wrap {
