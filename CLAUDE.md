@@ -636,6 +636,46 @@ Diterapkan di `muatGrafikPing()` pada
 > pola garis di atas, atau cek dulu apakah versi Chart.js yang lebih baru
 > sudah memperbaikinya.
 
+### 6.6 Pool VPN bisa akses manajemen router (Winbox/API/HTTP) — DITEMUKAN & DITUTUP
+
+**Ditemukan 2026-09-13** lewat pengujian manual: konek sebagai klien VPN
+biasa, lalu coba login ke IP manajemen router (`ROUTEROS_BASE_URL`) — BERHASIL
+masuk. Isolasi firewall (keputusan #3) cuma mengatur `chain=forward` (trafik
+klien MENUJU VPS lain); tidak ada rule yang mengatur `chain=input` (trafik
+klien MENUJU ROUTER ITU SENDIRI). Default RouterOS untuk `chain=input` adalah
+ACCEPT kalau tidak ada rule yang menangkap, jadi Winbox/SSH/REST API router
+tetap kebuka dari pool VPN manapun.
+
+**Ini pelanggaran serius terhadap keputusan #3**, lebih parah daripada nyasar
+ke VPS lain: klien bisa masuk ke seluruh kendali router.
+
+**Perbaikan:** satu rule tambahan di `chain=input`, ditaruh SETELAH accept
+L2TP/IPsec (supaya handshake VPN tetap jalan) dan SEBELUM aturan isolasi
+`chain=forward`:
+
+```
+add chain=input src-address=10.10.20.0/24 action=drop comment="vpnlc:sistem - blokir manajemen dari pool VPN"
+```
+
+**Revisi 2026-09-13 — rule berbasis `src-address` pool TIDAK CUKUP.** Pengujian
+lanjutan: laptop penguji berada di LAN yang sama dengan `ether1`
+(`192.168.1.x`), jadi SSH ke `192.168.1.20` lewat Wi-Fi biasa dengan sumber
+`192.168.1.26`, bukan lewat tunnel. Firewall tidak dapat membedakan pemilik
+akun VPN di LAN dari orang lain di LAN berdasarkan IP.
+
+**Perbaikan final (dua lapis, `chr-setup.rsc` langkah 3 dan 8-9):**
+1. `/ip service ... address=192.168.56.0/24` — SSH/Winbox/www/www-ssl/API hanya
+   menjawab dari jaringan manajemen (ether2, tempat Laravel).
+2. `chain=input`: accept established/related, L2TP/IPsec, DHCP client ether1,
+   DNS dari pool VPN; lalu drop semua dari pool VPN dan drop semua dari `ether1`.
+
+Rule drop pool versi awal juga diam-diam **memblokir DNS klien VPN**
+(`dns-server=10.10.20.1` = router sendiri). Diperbaiki dengan accept port 53
+dari pool sebelum drop.
+
+> Akibat: router tidak bisa lagi dikelola lewat `192.168.1.20` dari LAN.
+> Kelola lewat `192.168.56.2` (host-only), sama seperti Laravel.
+
 ---
 
 ## 7. Batasan Masalah (untuk Bab 1 skripsi)
