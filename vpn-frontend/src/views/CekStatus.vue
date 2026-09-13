@@ -181,6 +181,8 @@ async function kirimPerpanjangan() {
   margin-top: 20px;
   max-width: 420px;
 }
+.cek-status__form .input { flex: 1; min-width: 0; }
+.cek-status__form .btn { flex: none; }
 
 @media (max-width: 480px) {
   .cek-status__form {

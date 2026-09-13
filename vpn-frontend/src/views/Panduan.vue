@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { panduanPengajuan, panduanPerangkat } from "../data/panduan";
+import { panduanPengajuan, panduanPerpanjangan, panduanPerangkat } from "../data/panduan";
 
 const tab = ref("pengajuan"); // 'pengajuan' | 'penggunaan'
 const perangkatAktif = ref(panduanPerangkat[0].perangkat);
@@ -32,6 +32,13 @@ function pecah(judul) {
       </button>
       <button
         class="ptabs__item"
+        :class="{ 'is-active': tab === 'perpanjangan' }"
+        @click="tab = 'perpanjangan'"
+      >
+        Perpanjangan Akses
+      </button>
+      <button
+        class="ptabs__item"
         :class="{ 'is-active': tab === 'penggunaan' }"
         @click="tab = 'penggunaan'"
       >
@@ -42,6 +49,17 @@ function pecah(judul) {
     <!-- Panduan pengajuan -->
     <ol v-if="tab === 'pengajuan'" class="pguide">
       <li v-for="langkah in panduanPengajuan" :key="langkah.judul" class="pguide__item">
+        <span class="pguide__no">{{ pecah(langkah.judul).no }}</span>
+        <div class="pguide__body">
+          <h3 class="pguide__title">{{ pecah(langkah.judul).teks }}</h3>
+          <p class="pguide__text">{{ langkah.isi }}</p>
+        </div>
+      </li>
+    </ol>
+
+    <!-- Panduan perpanjangan -->
+    <ol v-else-if="tab === 'perpanjangan'" class="pguide">
+      <li v-for="langkah in panduanPerpanjangan" :key="langkah.judul" class="pguide__item">
         <span class="pguide__no">{{ pecah(langkah.judul).no }}</span>
         <div class="pguide__body">
           <h3 class="pguide__title">{{ pecah(langkah.judul).teks }}</h3>
@@ -107,21 +125,16 @@ function pecah(judul) {
 }
 .pguide__item {
   display: flex;
+  align-items: baseline;
   gap: 14px;
   padding: 14px 0;
   border-bottom: 1px solid var(--color-border);
 }
 .pguide__item:last-child { border-bottom: none; }
 .pguide__no {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-primary-soft);
   color: var(--color-primary);
-  display: grid;
-  place-items: center;
-  font-size: 12px;
   font-weight: 700;
+  font-size: 13px;
   flex: none;
 }
 .pguide__body { min-width: 0; }

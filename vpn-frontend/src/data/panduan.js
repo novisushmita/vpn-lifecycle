@@ -27,6 +27,29 @@ export const panduanPengajuan = [
   },
 ];
 
+export const panduanPerpanjangan = [
+  {
+    judul: "1. Buka Cek Status Pengajuan",
+    isi: "Masukkan nomor pengajuan akun VPN Anda yang masih aktif, lalu klik \"Cek Status\".",
+  },
+  {
+    judul: "2. Klik \"Ajukan Perpanjangan\"",
+    isi: "Tombol ini muncul di bawah detail status, khusus untuk akun yang sedang aktif dan mendekati tanggal berakhir.",
+  },
+  {
+    judul: "3. Isi tanggal baru dan alasan",
+    isi: "Tentukan tanggal akhir akses yang baru, serta alasan perpanjangan (misal pekerjaan belum selesai).",
+  },
+  {
+    judul: "4. Kirim dan simpan nomor pengajuan baru",
+    isi: "Sistem menerbitkan nomor pengajuan perpanjangan yang baru. Simpan nomor ini untuk memeriksa statusnya.",
+  },
+  {
+    judul: "5. Tunggu persetujuan admin",
+    isi: "Setelah admin menyetujui, tanggal akses akun diperpanjang dan akun otomatis diaktifkan kembali di VPN.",
+  },
+];
+
 export const panduanPerangkat = [
   {
     perangkat: "Windows",
