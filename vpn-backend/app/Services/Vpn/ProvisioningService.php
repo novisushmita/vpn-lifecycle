@@ -5,6 +5,7 @@ namespace App\Services\Vpn;
 use App\Enums\StatusAkun;
 use App\Models\AkunVpn;
 use App\Models\OperasiRouter;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\RouterOs\RouterOsException;
 use Closure;
@@ -105,7 +106,7 @@ class ProvisioningService
                 $this->batalkan($dibuat);
                 $akun->forceFill([
                     'status'      => StatusAkun::GagalProvision,
-                    'pesan_error' => $e->getMessage(),
+                    'pesan_error' => PesanGagalRouter::aman($e, 'Provisioning gagal diterapkan ke router. Periksa sinkronisasi lalu coba kembali.'),
                 ])->save();
 
                 throw $e;
@@ -506,7 +507,7 @@ class ProvisioningService
         } catch (Throwable $e) {
             $operasi->update([
                 'status'       => 'gagal',
-                'pesan_error'  => $e->getMessage(),
+                'pesan_error'  => PesanGagalRouter::aman($e, "Operasi {$jenis} gagal diterapkan ke router. Periksa sinkronisasi lalu coba kembali."),
                 'selesai_pada' => now(),
                 'durasi_ms'    => $this->msSejak($mulai),
                 'percobaan'    => $operasi->percobaan + 1,

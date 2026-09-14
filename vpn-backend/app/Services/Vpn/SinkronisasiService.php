@@ -5,6 +5,7 @@ namespace App\Services\Vpn;
 use App\Models\AkunVpn;
 use App\Models\Drift;
 use App\Models\OperasiRouter;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\RouterOs\RouterOsException;
 use RuntimeException;
@@ -65,7 +66,8 @@ class SinkronisasiService
             return ['diperiksa' => $diperiksa, 'temuan' => $temuan, 'ditutup' => $ditutup];
         } catch (\Throwable $e) {
             $operasi->update([
-                'status' => 'gagal', 'pesan_error' => $e->getMessage(),
+                'status' => 'gagal',
+                'pesan_error' => PesanGagalRouter::aman($e, 'Pemeriksaan drift gagal. Periksa koneksi router lalu coba kembali.'),
                 'selesai_pada' => now(),
                 'durasi_ms' => (int) round((hrtime(true) - $mulai) / 1_000_000),
             ]);

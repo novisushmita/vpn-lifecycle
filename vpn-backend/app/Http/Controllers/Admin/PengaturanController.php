@@ -8,6 +8,7 @@ use App\Models\AkunVpn;
 use App\Models\Drift;
 use App\Services\PencatatAudit;
 use App\Services\Pengaturan;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\RouterOs\RouterOsException;
 use App\Services\Vpn\AlokasiIp;
@@ -103,7 +104,7 @@ class PengaturanController extends Controller
 
             return response()->json(['tersambung' => true] + $info);
         } catch (RouterOsException $e) {
-            return response()->json(['tersambung' => false, 'pesan' => $e->getMessage()], 200);
+            return response()->json(['tersambung' => false, 'pesan' => PesanGagalRouter::aman($e, 'Router tidak dapat dihubungi. Periksa koneksi dan konfigurasi router.')], 200);
         }
     }
 

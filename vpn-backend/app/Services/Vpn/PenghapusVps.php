@@ -5,6 +5,7 @@ namespace App\Services\Vpn;
 use App\Enums\StatusAkun;
 use App\Models\OperasiRouter;
 use App\Models\Vps;
+use App\Services\PesanGagalRouter;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
@@ -79,7 +80,7 @@ class PenghapusVps
                 $this->provisioning->hapus($akun, 'vps_dihapus', $olehUserId);
                 $bersih++;
             } catch (Throwable $e) {
-                $gagal[] = ['username' => $akun->username, 'pesan' => $e->getMessage()];
+                $gagal[] = ['username' => $akun->username, 'pesan' => PesanGagalRouter::aman($e, 'Gagal dibersihkan dari router. Periksa sinkronisasi lalu coba kembali.')];
             }
         }
 
