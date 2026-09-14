@@ -18,15 +18,18 @@ const BATAS_MS = 120000;
 export async function tungguOperasi(operasiId, onKabar) {
   const mulai = Date.now();
   let statusTerakhir = null;
+  let jobTerakhir = null;
 
   for (;;) {
     if (Date.now() - mulai > BATAS_MS) {
+      const info = jobTerakhir ? ` Sedang diproses duluan: ${jobTerakhir}.` : "";
       throw new Error(
-        "Operasi belum selesai setelah dua menit. Periksa apakah queue worker berjalan."
+        `Operasi belum selesai setelah dua menit.${info} Periksa apakah queue worker berjalan.`
       );
     }
 
     const baris = await apiAdmin(`admin/operasi/${operasiId}`);
+    if (baris.job_aktif) jobTerakhir = baris.job_aktif;
 
     if (baris.status !== statusTerakhir) {
       statusTerakhir = baris.status;
@@ -50,17 +53,21 @@ export async function tungguOperasi(operasiId, onKabar) {
  * @param {string} token
  * @returns {Promise<object>} isi cache saat selesai
  */
-export async function tungguPingManual(token) {
+export async function tungguPingManual(token, onProgres) {
   const mulai = Date.now();
+  let jobTerakhir = null;
 
   for (;;) {
     if (Date.now() - mulai > BATAS_MS) {
+      const info = jobTerakhir ? ` Sedang diproses duluan: ${jobTerakhir}.` : "";
       throw new Error(
-        "Pemeriksaan belum selesai setelah dua menit. Periksa apakah queue worker berjalan."
+        `Pemeriksaan belum selesai setelah dua menit.${info} Periksa apakah queue worker berjalan.`
       );
     }
 
     const baris = await apiAdmin(`admin/vps-ping-status/${token}`);
+    if (baris.job_aktif) jobTerakhir = baris.job_aktif;
+    onProgres?.(baris.job_aktif ?? null);
 
     if (baris.status === "sukses") return baris;
     if (baris.status === "gagal") {

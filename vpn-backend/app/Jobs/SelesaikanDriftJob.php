@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Drift;
 use App\Models\OperasiRouter;
+use App\Services\PenandaJobRouter;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\Vpn\ProvisioningService;
 use App\Services\Vpn\SinkronisasiService;
@@ -42,6 +44,8 @@ class SelesaikanDriftJob implements ShouldQueue
 
         $router = RouterOsClient::dariConfig();
 
+        PenandaJobRouter::mulai("Rekonsiliasi drift #{$drift->id} ({$this->resolusi})");
+
         try {
             (new SinkronisasiService($router, new ProvisioningService($router)))
                 ->selesaikan($drift, $this->resolusi, $this->olehUserId);
@@ -54,11 +58,15 @@ class SelesaikanDriftJob implements ShouldQueue
             ]);
         } catch (Throwable $e) {
             $operasi->update([
-                'status' => 'gagal', 'pesan_error' => $e->getMessage(), 'selesai_pada' => now(),
+                'status' => 'gagal',
+                'pesan_error' => PesanGagalRouter::aman($e, 'Rekonsiliasi drift gagal. Periksa koneksi router lalu coba kembali.'),
+                'selesai_pada' => now(),
                 'durasi_ms' => (int) round((hrtime(true) - $mulai) / 1_000_000),
             ]);
 
             throw $e;
+        } finally {
+            PenandaJobRouter::selesai();
         }
     }
 
@@ -68,7 +76,7 @@ class SelesaikanDriftJob implements ShouldQueue
             ->whereIn('status', ['antre', 'berjalan'])
             ->update([
                 'status' => 'gagal',
-                'pesan_error' => $e?->getMessage() ?? 'Pekerjaan terhenti tanpa keterangan.',
+                'pesan_error' => $e ? PesanGagalRouter::aman($e, 'Pekerjaan terhenti. Periksa sinkronisasi sebelum mencoba kembali.') : 'Pekerjaan terhenti tanpa keterangan.',
                 'selesai_pada' => now(),
             ]);
     }

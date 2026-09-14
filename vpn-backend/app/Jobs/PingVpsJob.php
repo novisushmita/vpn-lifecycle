@@ -6,6 +6,8 @@ use App\Models\OperasiRouter;
 use App\Models\Vps;
 use App\Models\VpsHealthCheck;
 use App\Services\Pengaturan;
+use App\Services\PenandaJobRouter;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -46,6 +48,8 @@ class PingVpsJob implements ShouldQueue
             Cache::put("vps_ping:{$this->tokenCache}", ['status' => 'berjalan'], 120);
         }
 
+        PenandaJobRouter::mulai(($this->operasiId ? 'Ping VPS terjadwal' : 'Ping VPS manual').": {$vps->nama}");
+
         try {
             $hasil = RouterOsClient::dariConfig()->ping($vps->alamat_ip);
 
@@ -81,15 +85,18 @@ class PingVpsJob implements ShouldQueue
                 Cache::put("vps_ping:{$this->tokenCache}", ['status' => 'sukses', 'hasil' => $hasil], 120);
             }
         } catch (Throwable $e) {
+            $pesan = PesanGagalRouter::aman($e, 'Router tidak dapat dihubungi untuk memeriksa VPS ini. Coba lagi sebentar lagi.');
             $operasi?->update([
-                'status' => 'gagal', 'pesan_error' => $e->getMessage(), 'selesai_pada' => now(),
+                'status' => 'gagal', 'pesan_error' => $pesan, 'selesai_pada' => now(),
                 'durasi_ms' => (int) round((hrtime(true) - $mulai) / 1_000_000),
             ]);
             if ($this->tokenCache) {
-                Cache::put("vps_ping:{$this->tokenCache}", ['status' => 'gagal', 'pesan_error' => $e->getMessage()], 120);
+                Cache::put("vps_ping:{$this->tokenCache}", ['status' => 'gagal', 'pesan_error' => $pesan], 120);
             }
 
             throw $e;
+        } finally {
+            PenandaJobRouter::selesai();
         }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Services\PenandaJobRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\Vpn\ProvisioningService;
 use App\Services\Vpn\SinkronisasiService;
@@ -27,6 +28,12 @@ class PeriksaDriftJob implements ShouldQueue
     {
         $router = RouterOsClient::dariConfig();
 
-        (new SinkronisasiService($router, new ProvisioningService($router)))->periksa();
+        PenandaJobRouter::mulai('Pemeriksaan drift terjadwal');
+
+        try {
+            (new SinkronisasiService($router, new ProvisioningService($router)))->periksa();
+        } finally {
+            PenandaJobRouter::selesai();
+        }
     }
 }

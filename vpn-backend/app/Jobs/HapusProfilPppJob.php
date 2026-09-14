@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Models\OperasiRouter;
+use App\Services\PenandaJobRouter;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -36,6 +38,8 @@ class HapusProfilPppJob implements ShouldQueue
             'payload' => ['hapus_profile' => $this->namaProfile],
         ]);
 
+        PenandaJobRouter::mulai("Hapus PPP profile: {$this->namaProfile}");
+
         try {
             $terhapus = false;
 
@@ -55,12 +59,15 @@ class HapusProfilPppJob implements ShouldQueue
             ]);
         } catch (Throwable $e) {
             $operasi->update([
-                'status' => 'gagal', 'pesan_error' => $e->getMessage(),
+                'status' => 'gagal',
+                'pesan_error' => PesanGagalRouter::aman($e, 'Gagal membersihkan PPP profile di router. Periksa sinkronisasi lalu coba kembali.'),
                 'selesai_pada' => now(),
                 'durasi_ms' => (int) round((hrtime(true) - $mulai) / 1_000_000),
             ]);
 
             throw $e;
+        } finally {
+            PenandaJobRouter::selesai();
         }
     }
 }

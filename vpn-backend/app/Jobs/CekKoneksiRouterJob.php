@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Services\PenandaJobRouter;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\RouterOs\RouterOsException;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -27,11 +29,15 @@ class CekKoneksiRouterJob implements ShouldQueue
 
     public function handle(): void
     {
+        PenandaJobRouter::mulai('Pemeriksaan koneksi router terjadwal');
+
         try {
             $info = RouterOsClient::dariConfig()->cekKoneksi();
             $data = ['tersambung' => true] + $info;
         } catch (RouterOsException $e) {
-            $data = ['tersambung' => false, 'pesan' => $e->getMessage()];
+            $data = ['tersambung' => false, 'pesan' => PesanGagalRouter::aman($e, 'Router tidak dapat dihubungi.')];
+        } finally {
+            PenandaJobRouter::selesai();
         }
 
         Cache::put(self::KUNCI, $data + ['diperiksa_pada' => now()->toIso8601String()], 600);

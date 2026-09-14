@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Vps;
+use App\Services\PenandaJobRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\Vpn\PenghapusVps;
 use App\Services\Vpn\ProvisioningService;
@@ -35,7 +36,13 @@ class HapusVpsJob implements ShouldQueue
 
         $router = RouterOsClient::dariConfig();
 
-        (new PenghapusVps(new ProvisioningService($router)))
-            ->jalankan($vps, $this->olehUserId);
+        PenandaJobRouter::mulai("Hapus VPS berantai: {$vps->nama}");
+
+        try {
+            (new PenghapusVps(new ProvisioningService($router)))
+                ->jalankan($vps, $this->olehUserId);
+        } finally {
+            PenandaJobRouter::selesai();
+        }
     }
 }

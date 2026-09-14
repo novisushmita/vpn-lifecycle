@@ -8,9 +8,10 @@ use App\Models\AuditLog;
 use App\Models\OperasiRouter;
 use App\Models\PaketBandwidth;
 use App\Models\Vps;
+use App\Services\PenandaJobRouter;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\RouterOs\RouterOsException;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
@@ -33,6 +34,7 @@ class EditAkunService
         $mulai = hrtime(true);
         $operasi->update(['status' => 'berjalan', 'dimulai_pada' => now(), 'percobaan' => 1]);
         $ubah = [];
+        PenandaJobRouter::mulai("Edit akun VPN #{$operasi->akun_vpn_id}");
         try {
             DB::transaction(function () use ($operasi, $data, &$ubah, $mulai) {
                 $akun = AkunVpn::whereKey($operasi->akun_vpn_id)->lockForUpdate()->firstOrFail();
@@ -130,12 +132,13 @@ class EditAkunService
                 }
             }
             // Pesan RouterOS dapat memuat input sensitif. Jangan simpan pesan mentahnya.
-            $pesan = $e instanceof RuntimeException && ! $e instanceof RouterOsException && ! $e instanceof QueryException
-                ? $e->getMessage() : 'Edit gagal. Periksa koneksi, username di router, dan kelengkapan objek lalu coba kembali.';
+            $pesan = PesanGagalRouter::aman($e, 'Edit gagal. Periksa koneksi, username di router, dan kelengkapan objek lalu coba kembali.');
             if ($rollbackGagal) {
                 $pesan = 'Edit gagal dan pemulihan router belum lengkap. Periksa sinkronisasi sebelum mencoba kembali.';
             }
             $operasi->update(['status' => 'gagal', 'pesan_error' => $pesan, 'selesai_pada' => now(), 'durasi_ms' => (int) ((hrtime(true) - $mulai) / 1000000)]);
+        } finally {
+            PenandaJobRouter::selesai();
         }
     }
 }

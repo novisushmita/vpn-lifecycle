@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Mail\KredensialVpn;
 use App\Models\AkunVpn;
 use App\Services\Pengaturan;
+use App\Services\PenandaJobRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\Vpn\ProvisioningService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,8 +47,14 @@ class ProvisionAkunJob implements ShouldQueue
             return; // akun sudah dihapus sebelum job sempat jalan
         }
 
-        $akun = (new ProvisioningService(RouterOsClient::dariConfig()))
-            ->provision($akun, $this->olehUserId);
+        PenandaJobRouter::mulai("Provisioning akun: {$akun->username}");
+
+        try {
+            $akun = (new ProvisioningService(RouterOsClient::dariConfig()))
+                ->provision($akun, $this->olehUserId);
+        } finally {
+            PenandaJobRouter::selesai();
+        }
 
         // Dikirim hanya setelah objek benar-benar terpasang di router.
         // Mengirim lebih awal berarti pemohon menerima kredensial yang belum

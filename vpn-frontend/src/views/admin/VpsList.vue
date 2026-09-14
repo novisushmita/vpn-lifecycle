@@ -19,6 +19,7 @@ const pingBerjalan = ref(null);
 const periksaSemuaBerjalan = ref(false);
 const progres = ref({ selesai: 0, total: 0 });
 const galatPing = reactive({});
+const jobAktifPing = reactive({});
 let halamanAktif = true;
 onBeforeUnmount(() => { halamanAktif = false; document.removeEventListener("click", tutupMenu); });
 
@@ -130,11 +131,17 @@ async function ping(v) {
   pesan.value = "";
   pingGagal.value = false;
   delete galatPing[v.id];
+  delete jobAktifPing[v.id];
   try {
     // Ping dijalankan di antrean; tunggu tokennya kelar lalu baca
     // baris VPS yang sudah diperbarui.
     const antre = await apiAdmin(`admin/vps/${v.id}/ping`, { method: "POST" });
-    if (antre.token) await tungguPingManual(antre.token);
+    if (antre.token) {
+      await tungguPingManual(antre.token, (jobAktif) => {
+        if (jobAktif) jobAktifPing[v.id] = jobAktif;
+      });
+    }
+    delete jobAktifPing[v.id];
     const segar = await apiAdmin(`admin/vps/${v.id}`);
     const data = segar.data ?? segar;
     Object.assign(v, data);
@@ -292,7 +299,10 @@ onMounted(muat);
               >{{ v.status_terakhir.toUpperCase() }}</span>
             </td>
             <td>
-              <div v-if="pingBerjalan === v.id" role="status">Sedang memeriksa…</div>
+              <div v-if="pingBerjalan === v.id" role="status">
+                Sedang memeriksa…
+                <span v-if="jobAktifPing[v.id]">Menunggu giliran, router sedang dipakai: {{ jobAktifPing[v.id] }}.</span>
+              </div>
               <div v-if="galatPing[v.id]" style="color: var(--color-danger, #b91c1c)">
                 Pemeriksaan gagal: {{ galatPing[v.id] }}. Data di bawah adalah hasil sebelumnya.
               </div>

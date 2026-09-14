@@ -125,6 +125,8 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
             'hasil'        => $operasi->hasil,
             'durasi_ms'    => $operasi->durasi_ms,
             'selesai_pada' => $operasi->selesai_pada?->toIso8601String(),
+            'job_aktif'    => in_array($operasi->status, ['antre', 'berjalan'], true)
+                ? App\Services\PenandaJobRouter::aktif() : null,
         ]);
     });
     Route::post('drift/{drift}/selesaikan', [DriftController::class, 'selesaikan']);

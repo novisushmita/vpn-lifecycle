@@ -8,6 +8,7 @@ use App\Http\Resources\VpsAdminResource;
 use App\Models\SesiVpn;
 use App\Models\Vps;
 use App\Services\PencatatAudit;
+use App\Services\PenandaJobRouter;
 use App\Services\RouterOs\RouterOsClient;
 use App\Services\RouterOs\RouterOsException;
 use App\Jobs\HapusVpsJob;
@@ -152,6 +153,10 @@ class VpsController extends Controller
         $data = Cache::get("vps_ping:{$token}");
 
         abort_if($data === null, 404, 'Token pemeriksaan tidak ditemukan atau sudah kedaluwarsa.');
+
+        if (in_array($data['status'], ['antre', 'berjalan'], true)) {
+            $data['job_aktif'] = PenandaJobRouter::aktif();
+        }
 
         return response()->json($data);
     }

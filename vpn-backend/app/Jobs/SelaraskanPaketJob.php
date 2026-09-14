@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\OperasiRouter;
 use App\Models\PaketBandwidth;
+use App\Services\PenandaJobRouter;
+use App\Services\PesanGagalRouter;
 use App\Services\RouterOs\RouterOsClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -48,6 +50,8 @@ class SelaraskanPaketJob implements ShouldQueue
             ],
         ]);
 
+        PenandaJobRouter::mulai("Selaraskan paket: {$paket->nama}");
+
         try {
             $adaId = null;
             foreach ($router->daftar('ppp/profile') as $p) {
@@ -82,12 +86,15 @@ class SelaraskanPaketJob implements ShouldQueue
             ]);
         } catch (Throwable $e) {
             $operasi->update([
-                'status' => 'gagal', 'pesan_error' => $e->getMessage(),
+                'status' => 'gagal',
+                'pesan_error' => PesanGagalRouter::aman($e, 'Gagal menyelaraskan PPP profile paket ke router. Periksa sinkronisasi lalu coba kembali.'),
                 'selesai_pada' => now(),
                 'durasi_ms' => (int) round((hrtime(true) - $mulai) / 1_000_000),
             ]);
 
             throw $e;
+        } finally {
+            PenandaJobRouter::selesai();
         }
     }
 }
